@@ -1,0 +1,8 @@
+# gitignore file
+
+# the executable and object files
+exec
+obj/*
+
+# the example matrices
+example-matrices/*
