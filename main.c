@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <matrix.h>
+#include <graph.h>
 
 int main(size_t argc, char **argv) {
 	char* mtx_fname = NULL;
@@ -15,16 +15,23 @@ int main(size_t argc, char **argv) {
 	}
 	mtx_fname = argv[1];
 
-	cs_pattern_matrix csc;
-	cs_pattern_matrix csr;
+	graph G;
+	import_graph(mtx_fname, &G);
 
-	import_matrix(mtx_fname, &csr, &csc);
+	printf("CSR:\n");
+	for(size_t i = 0 ; i < G.n_nz ; ++i) printf("%d ", G.csr_col_id[i]);
+	printf("\n");
+	for(size_t i = 0 ; i <= G.n_rows ; ++i) printf("%d ", G.csr_row_id[i]);
+	printf("\n");
+	printf("\n");
 
-	printf("rows=%d cols=%d nnz=%d\n", csr.n_rows, csr.n_cols, csr.n_nz);
-	printf("rows=%d cols=%d nnz=%d\n", csc.n_rows, csc.n_cols, csc.n_nz);
+	printf("CSC:\n");
+	for(size_t i = 0 ; i < G.n_nz ; ++i) printf("%d ", G.csc_row_id[i]);
+	printf("\n");
+	for(size_t i = 0 ; i <= G.n_cols ; ++i) printf("%d ", G.csc_col_id[i]);
+	printf("\n");
 
-	free_matrix(&csc);
-	free_matrix(&csr);
+	free_graph(&G);
 
 	return 0;
 }
