@@ -10,24 +10,23 @@
 
 /* Initialize a graph struct in the CSC and CSR format.
  *
- * takes as input a pointer to the struct to be initialized and the number of rows, columns and 
- * non zero elements, then allocates the required memory to row_id and col_id.
+ * takes as input a pointer to the struct to be initialized and the number of
+ * vertices and edges, then allocates the required memory to row_id and col_id.
  *
  * the matrix struct should be freed by using free_matrix(&csc)
  */
-int initialize_graph(graph *G, size_t n_rows, size_t n_cols, size_t n_nz) {
+int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	// initializing the variables
-	G->n_rows = n_rows;
-	G->n_cols = n_cols;
-	G->n_nz = n_nz;
+	G->n_verts = n_verts;
+	G->n_edges = n_edges;
 
-	// in CSR format, col_id is of size n_nz and row_id of size n_rows+1
-	G->csr_col_id = (size_t *) malloc(n_nz * sizeof(size_t));
-	G->csr_row_id = (size_t *) malloc((n_rows + 1) * sizeof(size_t));
+	// in CSR format, col_id is of size n_edges and row_id of size n_verts + 1
+	G->csr_col_id = (size_t *) malloc(n_edges * sizeof(size_t));
+	G->csr_row_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
 
-	// in CSC format, row_id is of size n_nz and col_id of size n_cols+1
-	G->csc_row_id = (size_t *) malloc(n_nz * sizeof(size_t));
-	G->csc_col_id = (size_t *) malloc((n_cols + 1) * sizeof(size_t));
+	// in CSC format, row_id is of size n_edges and col_id of size n_verts + 1
+	G->csc_row_id = (size_t *) malloc(n_edges * sizeof(size_t));
+	G->csc_col_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
 
 	if(G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL || G->csc_row_id == NULL) {
 		return errno;
@@ -189,6 +188,16 @@ void import_graph(char *mtx_fname, graph *G) {
 		exit(1);
 	}
 
+	// graph adjacent matrices are square. fail if n_rows != n_cols
+	if(n_rows != n_cols) {
+		fprintf(stderr, 
+				"Error: incompatible size: %s\nmatrix must have equal number of rows and columns.\n", 
+				mtx_fname);
+
+		fclose(mtx_file);
+		exit(1);
+	}
+
 	// indices will store the pairs of row, column indices of nonzero elements
 	// in the .mtx file, later to be stored in the appropriate structs
 	size_t** indices;
@@ -204,13 +213,13 @@ void import_graph(char *mtx_fname, graph *G) {
 		// get the indices from the file, depending on the type of Matrix in the file,
 		// discarding the value of the matrix if needed.
 		if(mm_is_pattern(mtx_type)) {
-			fscanf_match_count = fscanf(mtx_file, "%d %d\n", &row, &col);
+			fscanf_match_count = fscanf(mtx_file, "%zu %zu\n", &row, &col);
 		} else if(mm_is_integer(mtx_type)) {
 			int val;
-			fscanf_match_count = fscanf(mtx_file, "%d %d %d\n", &row, &col, &val);
+			fscanf_match_count = fscanf(mtx_file, "%zu %zu %d\n", &row, &col, &val);
 		} else if(mm_is_real(mtx_type)) {
 			double val;
-			fscanf_match_count = fscanf(mtx_file, "%d %d %f\n", &row, &col, &val);
+			fscanf_match_count = fscanf(mtx_file, "%zu %zu %f\n", &row, &col, &val);
 		} else {
 			fprintf(stderr, "MatrixMarket file is of unsupported format: %s\n", mtx_fname);
 
@@ -258,9 +267,15 @@ void import_graph(char *mtx_fname, graph *G) {
 	// since we have read all the data from the .mtx file we can close it.
 	fclose(mtx_file);
 
+
+	// the number of vertices equals the rows of the matrix
+	// the number of edges is the number of non zero elements
+	size_t n_verts = n_rows;
+	size_t n_edges = n_nz;
+
 	// initialize the graph struct and handle errors
 	int mtx_init_err_code = 0;
-	mtx_init_err_code = initialize_graph(G, n_rows, n_cols, n_nz);
+	mtx_init_err_code = initialize_graph(G, n_verts, n_edges);
 	if(mtx_init_err_code) {
 		fprintf(stderr, "Error initializing CSC matrix: %s\n%s\n", mtx_fname, strerror(mtx_init_err_code));
 
@@ -271,6 +286,7 @@ void import_graph(char *mtx_fname, graph *G) {
 
 		exit(mtx_init_err_code);
 	}
+
 
 	/* the indices array is effectively a COO representation of the matrix.
 	 *
@@ -285,24 +301,24 @@ void import_graph(char *mtx_fname, graph *G) {
 	// then we perform a cumulative sum which will be in the form we need.
 	
 	// initialize csc_col_id to 0. 
-	for(size_t i = 0 ; i <= n_cols ; ++i) {
+	for(size_t i = 0 ; i <= n_verts ; ++i) {
 		G->csc_col_id[i] = 0;
 	}
 
 	// then we loop over the COO array
-	for(size_t i = 0 ; i < n_nz ; ++i) {
+	for(size_t i = 0 ; i < n_edges ; ++i) {
 		size_t row = indices[i][0];
 		size_t col = indices[i][1];
 
 		// store the row in row_id as is
 		G->csc_row_id[i] = row;
 
-		// increase col_id for column col+1 since 1 more nz element is present in col
+		// increase col_id for index: col+1 since 1 more nz element is present in col
 		G->csc_col_id[col + 1] += 1;
 	}
 
 	// then perform the cumulative sum
-	for(size_t i = 0 ; i < n_cols ; ++i) {
+	for(size_t i = 0 ; i < n_verts ; ++i) {
 		G->csc_col_id[i + 1] += G->csc_col_id[i];
 	}
 
@@ -314,24 +330,24 @@ void import_graph(char *mtx_fname, graph *G) {
 	// with col_id and row_id switched.
 	
 	// initialize csc_row_id to 0.
-	for(size_t i = 0 ; i <= n_rows ; ++i) {
+	for(size_t i = 0 ; i <= n_verts ; ++i) {
 		G->csr_row_id[i] = 0;
 	}
 
 	// then we loop over the COO array
-	for(size_t i = 0 ; i < n_nz ; ++i) {
+	for(size_t i = 0 ; i < n_edges ; ++i) {
 		size_t row = indices[i][0];
 		size_t col = indices[i][1];
 
 		// store the col in col_id as is
 		G->csr_col_id[i] = col;
 
-		// increase row_id for row row+1 since 1 more nz element is present in row
+		// increase row_id for index: row+1 since 1 more nz element is present in row
 		G->csr_row_id[row + 1] += 1;
 	}
 
 	// then perform the cumulative sum
-	for(size_t i = 0 ; i < n_rows ; ++i) {
+	for(size_t i = 0 ; i < n_verts ; ++i) {
 		G->csr_row_id[i + 1] += G->csr_row_id[i];
 	}
 

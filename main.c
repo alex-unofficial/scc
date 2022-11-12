@@ -19,16 +19,16 @@ int main(size_t argc, char **argv) {
 	import_graph(mtx_fname, &G);
 
 	printf("CSR:\n");
-	for(size_t i = 0 ; i < G.n_nz ; ++i) printf("%d ", G.csr_col_id[i]);
+	for(size_t i = 0 ; i < G.n_edges ; ++i) printf("%d ", G.csr_col_id[i]);
 	printf("\n");
-	for(size_t i = 0 ; i <= G.n_rows ; ++i) printf("%d ", G.csr_row_id[i]);
+	for(size_t i = 0 ; i <= G.n_verts ; ++i) printf("%d ", G.csr_row_id[i]);
 	printf("\n");
 	printf("\n");
 
 	printf("CSC:\n");
-	for(size_t i = 0 ; i < G.n_nz ; ++i) printf("%d ", G.csc_row_id[i]);
+	for(size_t i = 0 ; i < G.n_edges ; ++i) printf("%d ", G.csc_row_id[i]);
 	printf("\n");
-	for(size_t i = 0 ; i <= G.n_cols ; ++i) printf("%d ", G.csc_col_id[i]);
+	for(size_t i = 0 ; i <= G.n_verts ; ++i) printf("%d ", G.csc_col_id[i]);
 	printf("\n");
 
 	free_graph(&G);

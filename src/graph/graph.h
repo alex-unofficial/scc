@@ -16,9 +16,8 @@
  * will only encode directionality, not edge weights.
  */
 typedef struct graph{
-	size_t n_rows;
-	size_t n_cols;
-	size_t n_nz;
+	size_t n_verts;
+	size_t n_edges;
 
 	size_t *csr_row_id;
 	size_t *csr_col_id;
@@ -28,7 +27,7 @@ typedef struct graph{
 } graph;
 
 // Initialize a graph struct in the CSC and CSR format.
-int initialize_graph(graph *G, size_t n_rows, size_t n_cols, size_t n_nz);
+int initialize_graph(graph *G, size_t n_verts, size_t n_edges);
 
 // Free the memory allocated to a graph struct
 void free_graph(graph *G);
