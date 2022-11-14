@@ -116,14 +116,14 @@ int comp_col(const void *a, const void *b) {
  * we are concerned mostly with the shape of the graph the matrix represents so the
  * values are discarded, and only the location of the nonzero elements is saved.
  */
-void import_graph(char *mtx_fname, graph *G) {
+int import_graph(char *mtx_fname, graph *G) {
 
 	// Attempt to open the file mtx_fname and checking for errors.
 	FILE *mtx_file = NULL;
 	mtx_file = fopen(mtx_fname, "r"); if(mtx_file == NULL) { 
 		int err = errno;
 		fprintf(stderr, "Error opening file: %s\n%s\n", mtx_fname, strerror(err));
-		exit(err);
+		return -1;
 	}
 
 	// The typecode struct stores information about the type of matrix the .mtx file represents
@@ -151,7 +151,7 @@ void import_graph(char *mtx_fname, graph *G) {
 		}
 
 		fclose(mtx_file);
-		exit(1);
+		return -1;
 	}
 
 	// the dimensions of the matrix and the nonzero elements
@@ -168,7 +168,7 @@ void import_graph(char *mtx_fname, graph *G) {
 		free(type);
 
 		fclose(mtx_file);
-		exit(1);
+		return -1;
 	}
 
 	// Handle errors related to reading the size information
@@ -185,7 +185,7 @@ void import_graph(char *mtx_fname, graph *G) {
 		}
 
 		fclose(mtx_file);
-		exit(1);
+		return -1;
 	}
 
 	// graph adjacent matrices are square. fail if n_rows != n_cols
@@ -195,7 +195,7 @@ void import_graph(char *mtx_fname, graph *G) {
 				mtx_fname);
 
 		fclose(mtx_file);
-		exit(1);
+		return -1;
 	}
 
 	// indices will store the pairs of row, column indices of nonzero elements
@@ -229,7 +229,7 @@ void import_graph(char *mtx_fname, graph *G) {
 			free(indices);
 
 			fclose(mtx_file);
-			exit(1);
+			return -1;
 		}
 
 		if(fscanf_match_count == EOF) {
@@ -248,7 +248,7 @@ void import_graph(char *mtx_fname, graph *G) {
 			free(indices);
 
 			fclose(mtx_file);
-			exit(fscanf_err_code);
+			return -1;
 		} else if(fscanf_match_count == 0) {
 			fprintf(stderr, "Error reading from %s:\nfscanf early matching failure\n", mtx_fname);
 
@@ -258,7 +258,7 @@ void import_graph(char *mtx_fname, graph *G) {
 			free(indices);
 
 			fclose(mtx_file);
-			exit(-1);
+			return -1;
 		}
 
 		indices[i][0] = row - 1;
@@ -284,7 +284,7 @@ void import_graph(char *mtx_fname, graph *G) {
 		}
 		free(indices);
 
-		exit(mtx_init_err_code);
+		return -1;
 	}
 
 
@@ -356,4 +356,78 @@ void import_graph(char *mtx_fname, graph *G) {
 		free(indices[i]);
 	}
 	free(indices);
+
+	return 0;
+}
+
+/* Gets the neighbours of vertex in graph G.
+ *
+ * neighbours refers to the vertices u such that there exists an edge (v, u) in graph G
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * allocates and initializes the array of neighbours and returns the number of neighbours.
+ */
+size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours) {
+	// checks if the vertex is contained in the graph
+	if(vertex >= G->n_verts || vertex < 0) {
+		fprintf(stderr, "Error: vertex out of bounds\nvertex must be < n_vertex\n");
+		return 0;
+	}
+
+	// in the CSR format the vertices u that a given vertex v point to are given
+	// in the col_id array at indices row_id[v]..row_id[v+1]
+	size_t col_index_start = G->csr_row_id[vertex];
+	size_t col_index_end = G->csr_row_id[vertex + 1];
+	size_t neighbour_count = col_index_end - col_index_start;
+
+	// checks if there are even any neighbours
+	if(neighbour_count > 0) {
+		// allocates the required memory and handles for errors
+		*neighbours = (size_t *) malloc(neighbour_count * sizeof(size_t));
+		if(*neighbours == NULL) {
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			return 0;
+		}
+
+		// then fills the array with the correct data
+		for(size_t i = 0; i < neighbour_count ; ++i) {
+			(*neighbours)[i] = G->csr_col_id[col_index_start + i];
+		}
+	}
+
+	return neighbour_count;
+}
+
+/* Gets the predecessors of vertex in graph G.
+ *
+ * predecessor refers to the vertices u such that there exists an edge (u, v) in graph G
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * allocates and initializes the array of predecessors and returns the number of predecessors.
+ */
+size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
+	// checks if the vertex is contained in the graph
+	if(vertex >= G->n_verts || vertex < 0) {
+		fprintf(stderr, "Error: vertex out of bounds\nvertex must be < n_vertex\n");
+		return 0;
+	}
+
+	size_t row_index_start = G->csc_col_id[vertex];
+	size_t row_index_end = G->csc_col_id[vertex + 1];
+	size_t predecessor_count = row_index_end - row_index_start;
+
+	// checks if there are even any predecessors
+	if(predecessor_count > 0) {
+		// allocates the required memory and handles for errors
+		*predecessors = (size_t *) malloc(predecessor_count * sizeof(size_t));
+		if(*predecessors == NULL) {
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			return 0;
+		}
+
+		// then fills the array with the correct data
+		for(size_t i = 0 ; i < predecessor_count ; ++i) {
+			(*predecessors)[i] = G->csc_row_id[row_index_start + i];
+		}
+	}
+
+	return predecessor_count;
 }

@@ -33,6 +33,12 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges);
 void free_graph(graph *G);
 
 // Imports a graph's adj. matrix from a MatrixMarket .mtx file and stores it in a graph struct
-void import_graph(char *mtx_fname, graph *G);
+int import_graph(char *mtx_fname, graph *G);
+
+// Gets the neighbours of vertex in graph G.
+size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours);
+
+// Gets the predecessors of vertex in graph G.
+size_t get_predecessors(size_t vertex, graph *G, size_t **predecesors);
 
 #endif

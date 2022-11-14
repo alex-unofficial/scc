@@ -16,20 +16,36 @@ int main(size_t argc, char **argv) {
 	mtx_fname = argv[1];
 
 	graph G;
-	import_graph(mtx_fname, &G);
+	if(import_graph(mtx_fname, &G)) {
+		return -1;
+	}
 
-	printf("CSR:\n");
-	for(size_t i = 0 ; i < G.n_edges ; ++i) printf("%d ", G.csr_col_id[i]);
-	printf("\n");
-	for(size_t i = 0 ; i <= G.n_verts ; ++i) printf("%d ", G.csr_row_id[i]);
-	printf("\n");
-	printf("\n");
+	
+	for(size_t v = 0; v < G.n_verts ; ++v) {
+		size_t n_N;
+		size_t *N;
+		n_N = get_neighbours(v, &G, &N);
 
-	printf("CSC:\n");
-	for(size_t i = 0 ; i < G.n_edges ; ++i) printf("%d ", G.csc_row_id[i]);
-	printf("\n");
-	for(size_t i = 0 ; i <= G.n_verts ; ++i) printf("%d ", G.csc_col_id[i]);
-	printf("\n");
+		if(n_N > 0) {
+			printf("neighbours %zu:", v);
+			for(size_t i = 0 ; i < n_N ; ++i) printf(" %zu", N[i]);
+			printf("\n");
+			free(N);
+		}
+
+		size_t n_P;
+		size_t *P;
+		n_P = get_predecessors(v, &G, &P);
+
+		if(n_P > 0) {
+			printf("predecessors %zu:", v);
+			for(size_t i = 0 ; i < n_P ; ++i) printf(" %zu", P[i]);
+			printf("\n");
+			free(P);
+		}
+
+		printf("\n");
+	}
 
 	free_graph(&G);
 
