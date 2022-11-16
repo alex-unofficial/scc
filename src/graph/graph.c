@@ -29,7 +29,7 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	G->csc_col_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
 
 	G->n_active_verts = n_verts;
-	G->vertex_active = (size_t *) malloc(n_verts * sizeof(size_t));
+	G->vertex_active = (int *) malloc(n_verts * sizeof(size_t));
 
 	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL ||
 	 	G->csc_row_id == NULL || G->vertex_active == NULL) {

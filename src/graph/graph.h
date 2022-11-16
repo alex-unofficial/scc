@@ -26,7 +26,7 @@ typedef struct graph{
 	size_t *csc_col_id;
 
 	size_t n_active_verts;
-	size_t *vertex_active;
+	int *vertex_active;
 } graph;
 
 // Initialize a graph struct in the CSC and CSR format.
