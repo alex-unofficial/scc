@@ -20,8 +20,12 @@ int main(size_t argc, char **argv) {
 		return -1;
 	}
 
-	
-	for(size_t v = 0; v < G.n_verts ; ++v) {
+	size_t *verts = NULL;
+	size_t n_active_verts = get_vertices(&G, &verts);
+
+	for(size_t i = 0; i < n_active_verts ; ++i) {
+		size_t v = verts[i];
+
 		size_t n_N;
 		size_t *N;
 		n_N = get_neighbours(v, &G, &N);
@@ -46,6 +50,8 @@ int main(size_t argc, char **argv) {
 
 		printf("\n");
 	}
+
+	free(verts);
 
 	free_graph(&G);
 

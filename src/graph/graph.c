@@ -28,8 +28,16 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	G->csc_row_id = (size_t *) malloc(n_edges * sizeof(size_t));
 	G->csc_col_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
 
-	if(G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL || G->csc_row_id == NULL) {
+	G->n_active_verts = n_verts;
+	G->vertex_active = (size_t *) malloc(n_verts * sizeof(size_t));
+
+	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL ||
+	 	G->csc_row_id == NULL || G->vertex_active == NULL) {
 		return errno;
+	}
+
+	for(size_t v = 0 ; v < n_verts ; ++v) {
+		G->vertex_active[v] = 1;
 	}
 
 	return 0;
@@ -46,6 +54,144 @@ void free_graph(graph *G) {
 
 	free(G->csc_col_id);
 	free(G->csc_row_id);
+	
+	free(G->vertex_active);
+}
+
+/* Checks if vertex is a valid and active vertex in G
+ *
+ * for this to be true, vertex must be between 0 and n_verts-1 and
+ * it must be an active vertex.
+ */
+int is_vertex(size_t vertex, graph *G) {
+	return (vertex >= 0) && (vertex < G->n_verts) && (G->vertex_active[vertex]);
+}
+
+/* Returns all the active vertices in the graph
+ *
+ * puts all active vertices of G in vertices and returns their number
+ */
+size_t get_vertices(graph *G, size_t **vertices) {
+	*vertices = (size_t *) malloc(G->n_active_verts * sizeof(size_t));
+	if(*vertices == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		return 0;
+	}
+
+	size_t j = 0;
+	for(size_t i = 0 ; i < G->n_verts ; ++i) {
+		if(is_vertex(j, G)) {
+			(*vertices)[j++] = i;
+		}
+	}
+
+	return G->n_active_verts;
+}
+
+/* Removes vertex from graph G
+ *
+ * sets vertex_active[vertex] = 0
+ */
+void remove_vertex(size_t vertex, graph *G) {
+	if(is_vertex(vertex, G)) {
+		G->vertex_active[vertex] = 0;
+		G->n_active_verts = G->n_active_verts - 1;
+	}
+}
+
+/* Removes every vertex in vertices from graph G
+ *
+ * calls remove_vertex for every vertex in vertices
+ */
+void remove_vertices(size_t *vertices, size_t vertex_count, graph *G) {
+	for(size_t i = 0 ; i < vertex_count ; ++i) {
+		size_t v = vertices[i];
+		remove_vertex(v, G);
+	}
+}
+
+/* Gets the neighbours of vertex in graph G.
+ *
+ * neighbours refers to the vertices u such that there exists an edge (v, u) in graph G
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * allocates and initializes the array of neighbours and returns the number of neighbours.
+ */
+size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours) {
+	// checks if the vertex is contained in the graph
+	if(!is_vertex(vertex, G)) {
+		return 0;
+	}
+
+	// in the CSR format the vertices u that a given vertex v point to are given
+	// in the col_id array at indices row_id[v]..row_id[v+1]
+	size_t col_index_start = G->csr_row_id[vertex];
+	size_t col_index_end = G->csr_row_id[vertex + 1];
+	size_t neighbour_count = col_index_end - col_index_start;
+
+	// checks if there are even any neighbours
+	if(neighbour_count > 0) {
+		// allocates the required memory and handles for errors
+		*neighbours = (size_t *) malloc(neighbour_count * sizeof(size_t));
+		if(*neighbours == NULL) {
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			return 0;
+		}
+
+		// then fills the array with the correct data
+		size_t j = 0;
+		for(size_t i = 0; i < neighbour_count ; ++i) {
+			size_t vertex_to_add = G->csr_col_id[col_index_start + i];
+			if(is_vertex(vertex_to_add, G)) {
+				(*neighbours)[j++] = vertex_to_add;
+			}
+		}
+
+		neighbour_count = j;
+		*neighbours = (size_t *) realloc(*neighbours, neighbour_count * sizeof(size_t));
+	}
+
+	return neighbour_count;
+}
+
+/* Gets the predecessors of vertex in graph G.
+ *
+ * predecessor refers to the vertices u such that there exists an edge (u, v) in graph G
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * allocates and initializes the array of predecessors and returns the number of predecessors.
+ */
+size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
+	// checks if the vertex is contained in the graph
+	if(!is_vertex(vertex, G)) {
+		return 0;
+	}
+
+	size_t row_index_start = G->csc_col_id[vertex];
+	size_t row_index_end = G->csc_col_id[vertex + 1];
+	size_t predecessor_count = row_index_end - row_index_start;
+
+	// checks if there are even any predecessors
+	if(predecessor_count > 0) {
+		// allocates the required memory and handles for errors
+		*predecessors = (size_t *) malloc(predecessor_count * sizeof(size_t));
+		if(*predecessors == NULL) {
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			return 0;
+		}
+
+		// then fills the array with the correct data
+		size_t j = 0;
+		for(size_t i = 0 ; i < predecessor_count ; ++i) {
+			size_t vertex_to_add = G->csc_row_id[row_index_start + i];
+			if(is_vertex(vertex_to_add, G)) {
+				(*predecessors)[j++] = vertex_to_add;
+			}
+		}
+
+		predecessor_count = j;
+		*predecessors = (size_t *) realloc(*predecessors, predecessor_count * sizeof(size_t));
+	}
+
+	return predecessor_count;
 }
 
 /* Compare the first index given 2 pairs of integer points
@@ -360,74 +506,4 @@ int import_graph(char *mtx_fname, graph *G) {
 	return 0;
 }
 
-/* Gets the neighbours of vertex in graph G.
- *
- * neighbours refers to the vertices u such that there exists an edge (v, u) in graph G
- * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
- * allocates and initializes the array of neighbours and returns the number of neighbours.
- */
-size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours) {
-	// checks if the vertex is contained in the graph
-	if(vertex >= G->n_verts || vertex < 0) {
-		fprintf(stderr, "Error: vertex out of bounds\nvertex must be < n_vertex\n");
-		return 0;
-	}
 
-	// in the CSR format the vertices u that a given vertex v point to are given
-	// in the col_id array at indices row_id[v]..row_id[v+1]
-	size_t col_index_start = G->csr_row_id[vertex];
-	size_t col_index_end = G->csr_row_id[vertex + 1];
-	size_t neighbour_count = col_index_end - col_index_start;
-
-	// checks if there are even any neighbours
-	if(neighbour_count > 0) {
-		// allocates the required memory and handles for errors
-		*neighbours = (size_t *) malloc(neighbour_count * sizeof(size_t));
-		if(*neighbours == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-			return 0;
-		}
-
-		// then fills the array with the correct data
-		for(size_t i = 0; i < neighbour_count ; ++i) {
-			(*neighbours)[i] = G->csr_col_id[col_index_start + i];
-		}
-	}
-
-	return neighbour_count;
-}
-
-/* Gets the predecessors of vertex in graph G.
- *
- * predecessor refers to the vertices u such that there exists an edge (u, v) in graph G
- * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
- * allocates and initializes the array of predecessors and returns the number of predecessors.
- */
-size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
-	// checks if the vertex is contained in the graph
-	if(vertex >= G->n_verts || vertex < 0) {
-		fprintf(stderr, "Error: vertex out of bounds\nvertex must be < n_vertex\n");
-		return 0;
-	}
-
-	size_t row_index_start = G->csc_col_id[vertex];
-	size_t row_index_end = G->csc_col_id[vertex + 1];
-	size_t predecessor_count = row_index_end - row_index_start;
-
-	// checks if there are even any predecessors
-	if(predecessor_count > 0) {
-		// allocates the required memory and handles for errors
-		*predecessors = (size_t *) malloc(predecessor_count * sizeof(size_t));
-		if(*predecessors == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-			return 0;
-		}
-
-		// then fills the array with the correct data
-		for(size_t i = 0 ; i < predecessor_count ; ++i) {
-			(*predecessors)[i] = G->csc_row_id[row_index_start + i];
-		}
-	}
-
-	return predecessor_count;
-}
