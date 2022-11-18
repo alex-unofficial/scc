@@ -58,6 +58,7 @@ void free_graph(graph *G) {
 	free(G->vertex_active);
 }
 
+
 /* Checks if vertex is a valid and active vertex in G
  *
  * for this to be true, vertex must be between 0 and n_verts-1 and
@@ -88,6 +89,7 @@ size_t get_vertices(graph *G, size_t **vertices) {
 	return G->n_active_verts;
 }
 
+
 /* Removes vertex from graph G
  *
  * sets vertex_active[vertex] = 0
@@ -109,6 +111,7 @@ void remove_vertices(size_t *vertices, size_t vertex_count, graph *G) {
 		remove_vertex(v, G);
 	}
 }
+
 
 /* Gets the neighbours of vertex in graph G.
  *
@@ -193,6 +196,120 @@ size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
 
 	return predecessor_count;
 }
+
+
+/* Performs BFS on graph G starting from start_vertex on nodes that 
+ * have search_property and saves the result in search_result
+ *
+ * properties must be of size n_verts and contains the property value for all the vertices.
+ * the method will result in all verts that can be reached from
+ * start_vertex using bfs via transfer and are homogeneous in search_property,
+ * meaning it will only search the subgraph G' with the nodes that have search_property.
+ *
+ * saves the result in search_result returns the size of search_result
+ */
+size_t bfs(
+		size_t start_vertex, graph *G, 
+		size_t (*transfer)(size_t, graph *, size_t **), 
+		size_t search_property, size_t *properties, 
+		size_t **search_result) {
+
+	if(properties[start_vertex] != search_property) return 0;
+
+	// initialize visited array. this will contain all vertices visited
+	size_t *visited = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	if(visited == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		return 0;
+	}
+
+	for(size_t i = 0 ; i < G->n_verts ; ++i) visited[i] = 0;
+	visited[start_vertex] = 1;
+	size_t n_visited = 1;
+
+	// the vertex queue will contain all the vertices that have to be explored
+	// it will contain at most n_active_verts. head and tail index the head and
+	// tail position of the queue
+	size_t *vertex_queue = (size_t *) malloc(G->n_active_verts * sizeof(size_t));
+	if(vertex_queue == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+
+		free(visited);
+		return 0;
+	}
+	size_t head = 0;
+	size_t tail = 0;
+
+	// enqueue start_vertex
+	vertex_queue[tail++] = start_vertex;
+
+	// while the queue is not empty
+	while(tail > head) {
+		// dequeue v
+		size_t v = vertex_queue[head++];
+
+		// get all the vertices that are reachable from v through transfer
+		size_t *front;
+		size_t front_size = 0;
+		front_size = (*transfer)(v, G, &front);
+
+		if(front_size > 0) {
+			// for each w reachable from v
+			for(size_t i = 0 ; i < front_size ; ++i) {
+				size_t w = front[i];
+				
+				// if w not visited and w has search_property
+				if (!visited[w] && properties[w] == search_property) {
+					// mark w as visited
+					visited[w] = 1;
+					n_visited += 1;
+					
+					// enqueue w
+					vertex_queue[tail++] = w;
+				}
+			}
+
+			free(front);
+		}
+	}
+
+	free(vertex_queue);
+
+	*search_result = (size_t *) malloc(n_visited * sizeof(size_t));
+	if(*search_result == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		
+		free(visited);
+		return 0;
+	}
+
+	size_t search_index = 0;
+	for(size_t v = 0 ; v < G->n_verts ; ++v) {
+		if(visited[v]) {
+			(*search_result)[search_index++] = v;
+		}
+	}
+	free(visited);
+
+	return n_visited;
+}
+
+// Performs BFS on graph G with transfer=get_neighbours
+size_t forward_bfs(
+		size_t start_vertex, graph *G, 
+		size_t search_property, size_t *properties, 
+		size_t **search_result) {
+	return bfs(start_vertex, G, get_neighbours, search_property, properties, search_result);
+}
+
+// Performs BFS on graph G with transfer=get_predecessors
+size_t backward_bfs(
+		size_t start_vertex, graph *G, 
+		size_t search_property, size_t *properties, 
+		size_t **search_result) {
+	return bfs(start_vertex, G, get_predecessors, search_property, properties, search_result);
+}
+
 
 /* Compare the first index given 2 pairs of integer points
  *
@@ -441,7 +558,7 @@ int import_graph(char *mtx_fname, graph *G) {
 	 */
 
 	// sort the indices based on the column index in order to create the CSC format
-	qsort(indices, n_nz, sizeof(size_t *), &comp_col);
+	qsort(indices, n_nz, sizeof(size_t *), comp_col);
 
 	// csc_col_id[col + 1] will initialy hold the number of nz elements in col, 
 	// then we perform a cumulative sum which will be in the form we need.
@@ -470,7 +587,7 @@ int import_graph(char *mtx_fname, graph *G) {
 
 
 	// then sort the indices based on row index, for the CSR format
-	qsort(indices, n_nz, sizeof(size_t *), &comp_row);
+	qsort(indices, n_nz, sizeof(size_t *), comp_row);
 
 	// then initialize the CSR struct in the same way as above, 
 	// with col_id and row_id switched.
@@ -505,5 +622,4 @@ int import_graph(char *mtx_fname, graph *G) {
 
 	return 0;
 }
-
 

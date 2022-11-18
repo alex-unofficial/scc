@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <errno.h>
 #include <string.h>
@@ -7,6 +8,8 @@
 #include <graph.h>
 
 int main(size_t argc, char **argv) {
+	srand(time(NULL));
+
 	char* mtx_fname = NULL;
 	if(argc < 2) {
 		fprintf(stderr, "Error reading input arguments: %s\nUsage:\t%s mtx_file.mtx\n", 
@@ -20,38 +23,29 @@ int main(size_t argc, char **argv) {
 		return -1;
 	}
 
-	size_t *verts = NULL;
-	size_t n_active_verts = get_vertices(&G, &verts);
+	size_t *properties = (size_t *) malloc(G.n_verts * sizeof(size_t));
+	for(size_t i = 0 ; i < G.n_verts ; i++) properties[i] = 1;
+	size_t search_prop = 1;
 
-	for(size_t i = 0; i < n_active_verts ; ++i) {
-		size_t v = verts[i];
+	size_t root = rand() % G.n_verts;
 
-		size_t n_N;
-		size_t *N;
-		n_N = get_neighbours(v, &G, &N);
+	size_t *result;
+	size_t result_size;
 
-		if(n_N > 0) {
-			printf("neighbours %zu:", v);
-			for(size_t i = 0 ; i < n_N ; ++i) printf(" %zu", N[i]);
-			printf("\n");
-			free(N);
+	result_size = forward_bfs(root, &G, search_prop, properties, &result);
+
+	free(properties);
+
+	if(result_size > 0) {
+		printf("root = %zu\n", root);
+		for(size_t i = 0 ; i < result_size ; i++) {
+			printf("%zu ", result[i]);
 		}
-
-		size_t n_P;
-		size_t *P;
-		n_P = get_predecessors(v, &G, &P);
-
-		if(n_P > 0) {
-			printf("predecessors %zu:", v);
-			for(size_t i = 0 ; i < n_P ; ++i) printf(" %zu", P[i]);
-			printf("\n");
-			free(P);
-		}
-
 		printf("\n");
+
+		free(result);
 	}
 
-	free(verts);
 
 	free_graph(&G);
 
