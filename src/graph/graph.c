@@ -225,7 +225,6 @@ size_t bfs(
 
 	for(size_t i = 0 ; i < G->n_verts ; ++i) visited[i] = 0;
 	visited[start_vertex] = 1;
-	size_t n_visited = 1;
 
 	// the vertex queue will contain all the vertices that have to be explored
 	// it will contain at most n_active_verts. head and tail index the head and
@@ -262,7 +261,6 @@ size_t bfs(
 				if (!visited[w] && properties[w] == search_property) {
 					// mark w as visited
 					visited[w] = 1;
-					n_visited += 1;
 					
 					// enqueue w
 					vertex_queue[tail++] = w;
@@ -273,23 +271,12 @@ size_t bfs(
 		}
 	}
 
-	free(vertex_queue);
-
-	*search_result = (size_t *) malloc(n_visited * sizeof(size_t));
-	if(*search_result == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-		
-		free(visited);
-		return 0;
-	}
-
-	size_t search_index = 0;
-	for(size_t v = 0 ; v < G->n_verts ; ++v) {
-		if(visited[v]) {
-			(*search_result)[search_index++] = v;
-		}
-	}
 	free(visited);
+
+	size_t n_visited = tail;
+
+	vertex_queue = (size_t *) realloc(vertex_queue, n_visited * sizeof(size_t));
+	*search_result = vertex_queue;
 
 	return n_visited;
 }
