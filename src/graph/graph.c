@@ -51,7 +51,8 @@ void free_graph(graph *G) {
 /* Gets the neighbours of vertex in graph G.
  *
  * neighbours refers to the vertices u such that there exists an edge (v, u) in graph G
- * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices, 
+ * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of neighbours and returns the number of neighbours.
  */
 size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, size_t **neighbours) {
@@ -94,7 +95,8 @@ size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, si
 /* Gets the predecessors of vertex in graph G.
  *
  * predecessor refers to the vertices u such that there exists an edge (u, v) in graph G
- * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
+ * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices,
+ * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of predecessors and returns the number of predecessors.
  */
 size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, size_t **predecessors) {

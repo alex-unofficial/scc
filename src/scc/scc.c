@@ -46,9 +46,6 @@ int is_trivial_scc(size_t v, const graph *G, const size_t *is_vertex) {
  * takes as input the graph G and a double pointer where the result will 
  * be stored. returns the number of sccs.
  *
- * the graph G is assumed to be complete (all vertices active) and by the end
- * of the algorithm the graph G will be empty (all vetices inactive)
- *
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
