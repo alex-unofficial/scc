@@ -28,21 +28,12 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	G->csc_row_id = (size_t *) malloc(n_edges * sizeof(size_t));
 	G->csc_col_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
 
-	G->n_active_verts = n_verts;
-	G->vertex_active = (int *) malloc(n_verts * sizeof(size_t));
-
-	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL ||
-	 	G->csc_row_id == NULL || G->vertex_active == NULL) {
+	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL || G->csc_row_id == NULL)  {
 		return errno;
-	}
-
-	for(size_t v = 0 ; v < n_verts ; ++v) {
-		G->vertex_active[v] = 1;
 	}
 
 	return 0;
 }
-
 
 /* Free the memory allocated to a graph struct
  *
@@ -54,62 +45,6 @@ void free_graph(graph *G) {
 
 	free(G->csc_col_id);
 	free(G->csc_row_id);
-	
-	free(G->vertex_active);
-}
-
-
-/* Checks if vertex is a valid and active vertex in G
- *
- * for this to be true, vertex must be between 0 and n_verts-1 and
- * it must be an active vertex.
- */
-int is_vertex(size_t vertex, const graph *G) {
-	return (vertex >= 0) && (vertex < G->n_verts) && (G->vertex_active[vertex]);
-}
-
-/* Returns all the active vertices in the graph
- *
- * puts all active vertices of G in vertices and returns their number
- */
-size_t get_vertices(const graph *G, size_t **vertices) {
-	*vertices = (size_t *) malloc(G->n_active_verts * sizeof(size_t));
-	if(*vertices == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-		return 0;
-	}
-
-	size_t j = 0;
-	for(size_t i = 0 ; i < G->n_verts ; ++i) {
-		if(is_vertex(j, G)) {
-			(*vertices)[j++] = i;
-		}
-	}
-
-	return G->n_active_verts;
-}
-
-
-/* Removes vertex from graph G
- *
- * sets vertex_active[vertex] = 0
- */
-void remove_vertex(size_t vertex, graph *G) {
-	if(is_vertex(vertex, G)) {
-		G->vertex_active[vertex] = 0;
-		G->n_active_verts = G->n_active_verts - 1;
-	}
-}
-
-/* Removes every vertex in vertices from graph G
- *
- * calls remove_vertex for every vertex in vertices
- */
-void remove_vertices(size_t *vertices, size_t vertex_count, graph *G) {
-	for(size_t i = 0 ; i < vertex_count ; ++i) {
-		size_t v = vertices[i];
-		remove_vertex(v, G);
-	}
 }
 
 
@@ -119,9 +54,9 @@ void remove_vertices(size_t *vertices, size_t vertex_count, graph *G) {
  * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
  * allocates and initializes the array of neighbours and returns the number of neighbours.
  */
-size_t get_neighbours(size_t vertex, const graph *G, size_t **neighbours) {
+size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, size_t **neighbours) {
 	// checks if the vertex is contained in the graph
-	if(!is_vertex(vertex, G)) {
+	if(!is_vertex[vertex]) {
 		return 0;
 	}
 
@@ -144,7 +79,7 @@ size_t get_neighbours(size_t vertex, const graph *G, size_t **neighbours) {
 		size_t j = 0;
 		for(size_t i = 0; i < neighbour_count ; ++i) {
 			size_t vertex_to_add = G->csr_col_id[col_index_start + i];
-			if(is_vertex(vertex_to_add, G)) {
+			if(is_vertex[vertex_to_add]) {
 				(*neighbours)[j++] = vertex_to_add;
 			}
 		}
@@ -162,9 +97,9 @@ size_t get_neighbours(size_t vertex, const graph *G, size_t **neighbours) {
  * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
  * allocates and initializes the array of predecessors and returns the number of predecessors.
  */
-size_t get_predecessors(size_t vertex, const graph *G, size_t **predecessors) {
+size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, size_t **predecessors) {
 	// checks if the vertex is contained in the graph
-	if(!is_vertex(vertex, G)) {
+	if(!is_vertex[vertex]) {
 		return 0;
 	}
 
@@ -185,7 +120,7 @@ size_t get_predecessors(size_t vertex, const graph *G, size_t **predecessors) {
 		size_t j = 0;
 		for(size_t i = 0 ; i < predecessor_count ; ++i) {
 			size_t vertex_to_add = G->csc_row_id[row_index_start + i];
-			if(is_vertex(vertex_to_add, G)) {
+			if(is_vertex[vertex_to_add]) {
 				(*predecessors)[j++] = vertex_to_add;
 			}
 		}
@@ -210,8 +145,8 @@ size_t get_predecessors(size_t vertex, const graph *G, size_t **predecessors) {
  */
 size_t bfs(
 		size_t start_vertex, const graph *G, 
-		size_t (*transfer)(size_t, const graph *, size_t **), 
-		size_t search_property, const size_t *properties, 
+		size_t (*transfer)(size_t, const graph *, const size_t *, size_t **), 
+		size_t search_property, const size_t *properties, const size_t *is_vertex, 
 		size_t **search_result) {
 
 	if(properties[start_vertex] != search_property) return 0;
@@ -229,7 +164,7 @@ size_t bfs(
 	// the vertex queue will contain all the vertices that have to be explored
 	// it will contain at most n_active_verts. head and tail index the head and
 	// tail position of the queue
-	size_t *vertex_queue = (size_t *) malloc(G->n_active_verts * sizeof(size_t));
+	size_t *vertex_queue = (size_t *) malloc(G->n_verts * sizeof(size_t));
 	if(vertex_queue == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
 
@@ -250,7 +185,7 @@ size_t bfs(
 		// get all the vertices that are reachable from v through transfer
 		size_t *front;
 		size_t front_size = 0;
-		front_size = (*transfer)(v, G, &front);
+		front_size = (*transfer)(v, G, is_vertex, &front);
 
 		if(front_size > 0) {
 			// for each w reachable from v
@@ -284,17 +219,17 @@ size_t bfs(
 // Performs BFS on graph G with transfer=get_neighbours
 size_t forward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, 
+		size_t search_property, const size_t *properties, const size_t *is_vertex,
 		size_t **search_result) {
-	return bfs(start_vertex, G, get_neighbours, search_property, properties, search_result);
+	return bfs(start_vertex, G, get_neighbours, search_property, properties, is_vertex, search_result);
 }
 
 // Performs BFS on graph G with transfer=get_predecessors
 size_t backward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, 
+		size_t search_property, const size_t *properties, const size_t *is_vertex,
 		size_t **search_result) {
-	return bfs(start_vertex, G, get_predecessors, search_property, properties, search_result);
+	return bfs(start_vertex, G, get_predecessors, search_property, properties, is_vertex, search_result);
 }
 
 

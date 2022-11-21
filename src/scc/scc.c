@@ -12,12 +12,12 @@
  * this is the case if v has no neighbours or no predecessors
  * or if its only neighbour/predecessor is itself
  */
-int is_trivial_scc(size_t v, const graph *G) {
+int is_trivial_scc(size_t v, const graph *G, const size_t *is_vertex) {
 	size_t *N;
-	size_t n_N = get_neighbours(v, G, &N);
+	size_t n_N = get_neighbours(v, G, is_vertex, &N);
 
 	size_t *P;
-	size_t n_P = get_predecessors(v, G, &P);
+	size_t n_P = get_predecessors(v, G, is_vertex, &P);
 
 	if(n_N == 0) {
 		if(n_P > 0) free(P);
@@ -52,11 +52,22 @@ int is_trivial_scc(size_t v, const graph *G) {
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
-size_t scc_coloring(graph *G, size_t **scc_id) {
+size_t scc_coloring(const graph *G, size_t **scc_id) {
+	
+	size_t *is_vertex = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	if(is_vertex == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		return 0;
+	}
+	for(size_t v = 0 ; v < G->n_verts ; ++v) is_vertex[v] = 1;
+	size_t n_active_verts = G->n_verts;
+
 	// allocate the memory required for the scc_id array
 	*scc_id = (size_t *) malloc(G->n_verts * sizeof(size_t));
 	if(*scc_id == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+
+		free(is_vertex);
 		return 0;
 	}
 
@@ -73,14 +84,16 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 		// loop over all vertices
 		for(size_t v = 0 ; v < G->n_verts ; ++v) {
 			// check if the vertex is active, and then if it is trivial
-			if(is_vertex(v, G) && is_trivial_scc(v, G)) {
+			if(is_vertex[v] && is_trivial_scc(v, G, is_vertex)) {
 				// if it is, set scc_id for the vertex to be itself
 				// and increase the number of sccs
 				(*scc_id)[v] = v;
 				n_scc += 1;
 
 				// finally remove the vertex from the graph
-				remove_vertex(v, G);
+				is_vertex[v] = 0;
+				n_active_verts -= 1;
+
 				removed_vertex = 1;
 			}
 		}
@@ -88,11 +101,12 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 
 	// the core loop of the algorithm
 	// this will run as long as G is non empty
-	while(G->n_active_verts > 0) {
+	while(n_active_verts > 0) {
 		// initialize the colors array as colors(v) = v for each v in G
 		size_t *colors = (size_t *) malloc(G->n_verts * sizeof(size_t));
 		if(colors == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			free(is_vertex);
 			free(*scc_id);
 			return 0;
 		}
@@ -107,7 +121,7 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 
 			// we loop over all the vertives v in the graph (checking if the v is active)
 			for(size_t v = 0 ; v < G->n_verts ; ++v) {
-				if(is_vertex(v, G)) {
+				if(is_vertex[v]) {
 					// we get the predecessors of the vertex v (vertices u such that [u, v] in G)
 					// because we want to write in one memory position (colors[v])
 					// as opposed to every u for each v. this is useful for 
@@ -115,7 +129,7 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 					// write to will not interfere.
 
 					size_t *predecessors;
-					size_t n_predecessors = get_predecessors(v, G, &predecessors);
+					size_t n_predecessors = get_predecessors(v, G, is_vertex, &predecessors);
 
 					if(n_predecessors > 0) {
 						// then we set colors[v] to be the minimum of its predecessors (or itself)
@@ -140,6 +154,7 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 		size_t *unique_colors = (size_t *) malloc(G->n_verts * sizeof(size_t));
 		if(unique_colors == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			free(is_vertex);
 			free(*scc_id);
 			free(colors);
 			return 0;
@@ -150,7 +165,7 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 		// those of the vertices v such that colors[v] = v, then c := v.
 		// we append c to the unique_colors array
 		for(size_t v = 0 ; v < G->n_verts ; ++v) {
-			if(is_vertex(v, G) && colors[v] == v) 
+			if(is_vertex[v] && colors[v] == v) 
 				unique_colors[n_colors++] = v;
 		}
 
@@ -164,18 +179,20 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 			// perform a backward bfs on the subgraph of G where colors[v] = c
 			// these create a new scc
 			size_t *scc_c;
-			size_t n_scc_c = backward_bfs(c, G, c, colors, &scc_c);
+			size_t n_scc_c = backward_bfs(c, G, c, colors, is_vertex, &scc_c);
 
 			if(n_scc_c > 0) {
 				// for each vertex in the new scc set scc_id = c and increase n_scc
 				for(size_t j = 0 ; j < n_scc_c ; ++j) {
 					size_t v = scc_c[j];
 					(*scc_id)[v] = c;
+
+					// finally remove the vertices from the graph
+					is_vertex[v] = 0;
+					n_active_verts -= 1;
 				}
 				n_scc += 1;
 
-				// finally remove the vertices from the graph
-				remove_vertices(scc_c, n_scc_c, G);
 
 				free(scc_c);
 			}
@@ -184,6 +201,8 @@ size_t scc_coloring(graph *G, size_t **scc_id) {
 		free(unique_colors);
 		free(colors);
 	}
+
+	free(is_vertex);
 
 	return n_scc;
 }
