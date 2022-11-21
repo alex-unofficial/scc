@@ -64,7 +64,7 @@ void free_graph(graph *G) {
  * for this to be true, vertex must be between 0 and n_verts-1 and
  * it must be an active vertex.
  */
-int is_vertex(size_t vertex, graph *G) {
+int is_vertex(size_t vertex, const graph *G) {
 	return (vertex >= 0) && (vertex < G->n_verts) && (G->vertex_active[vertex]);
 }
 
@@ -72,7 +72,7 @@ int is_vertex(size_t vertex, graph *G) {
  *
  * puts all active vertices of G in vertices and returns their number
  */
-size_t get_vertices(graph *G, size_t **vertices) {
+size_t get_vertices(const graph *G, size_t **vertices) {
 	*vertices = (size_t *) malloc(G->n_active_verts * sizeof(size_t));
 	if(*vertices == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
@@ -119,7 +119,7 @@ void remove_vertices(size_t *vertices, size_t vertex_count, graph *G) {
  * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
  * allocates and initializes the array of neighbours and returns the number of neighbours.
  */
-size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours) {
+size_t get_neighbours(size_t vertex, const graph *G, size_t **neighbours) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex(vertex, G)) {
 		return 0;
@@ -162,7 +162,7 @@ size_t get_neighbours(size_t vertex, graph *G, size_t **neighbours) {
  * takes as input the vertex, a pointer to the graph and a pointer to the array of vertices.
  * allocates and initializes the array of predecessors and returns the number of predecessors.
  */
-size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
+size_t get_predecessors(size_t vertex, const graph *G, size_t **predecessors) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex(vertex, G)) {
 		return 0;
@@ -209,9 +209,9 @@ size_t get_predecessors(size_t vertex, graph *G, size_t **predecessors) {
  * saves the result in search_result returns the size of search_result
  */
 size_t bfs(
-		size_t start_vertex, graph *G, 
-		size_t (*transfer)(size_t, graph *, size_t **), 
-		size_t search_property, size_t *properties, 
+		size_t start_vertex, const graph *G, 
+		size_t (*transfer)(size_t, const graph *, size_t **), 
+		size_t search_property, const size_t *properties, 
 		size_t **search_result) {
 
 	if(properties[start_vertex] != search_property) return 0;
@@ -283,16 +283,16 @@ size_t bfs(
 
 // Performs BFS on graph G with transfer=get_neighbours
 size_t forward_bfs(
-		size_t start_vertex, graph *G, 
-		size_t search_property, size_t *properties, 
+		size_t start_vertex, const graph *G, 
+		size_t search_property, const size_t *properties, 
 		size_t **search_result) {
 	return bfs(start_vertex, G, get_neighbours, search_property, properties, search_result);
 }
 
 // Performs BFS on graph G with transfer=get_predecessors
 size_t backward_bfs(
-		size_t start_vertex, graph *G, 
-		size_t search_property, size_t *properties, 
+		size_t start_vertex, const graph *G, 
+		size_t search_property, const size_t *properties, 
 		size_t **search_result) {
 	return bfs(start_vertex, G, get_predecessors, search_property, properties, search_result);
 }

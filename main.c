@@ -30,7 +30,7 @@ int main(size_t argc, char **argv) {
 	printf("n_scc = %zu\n\n", n_scc);
 	printf("vertex\tscc_id\n");
 	for(size_t i = 0 ; i < G.n_verts ; i++) {
-		printf("%zu\t%zu\n", i, scc_id[i]);
+		printf(" %zu\t %zu\n", i, scc_id[i]);
 	}
 
 	free(scc_id);

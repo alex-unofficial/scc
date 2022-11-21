@@ -12,7 +12,7 @@
  * this is the case if v has no neighbours or no predecessors
  * or if its only neighbour/predecessor is itself
  */
-int is_trivial_scc(size_t v, graph *G) {
+int is_trivial_scc(size_t v, const graph *G) {
 	size_t *N;
 	size_t n_N = get_neighbours(v, G, &N);
 
