@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <graph.h>
+#include <scc.h>
 
 int main(size_t argc, char **argv) {
 	srand(time(NULL));
@@ -23,29 +24,16 @@ int main(size_t argc, char **argv) {
 		return -1;
 	}
 
-	size_t *properties = (size_t *) malloc(G.n_verts * sizeof(size_t));
-	for(size_t i = 0 ; i < G.n_verts ; i++) properties[i] = 1;
-	size_t search_prop = 1;
+	size_t *scc_id;
+	size_t n_scc = scc_coloring(&G, &scc_id);
 
-	size_t root = rand() % G.n_verts;
-
-	size_t *result;
-	size_t result_size;
-
-	result_size = forward_bfs(root, &G, search_prop, properties, &result);
-
-	free(properties);
-
-	if(result_size > 0) {
-		printf("root = %zu\n", root);
-		for(size_t i = 0 ; i < result_size ; i++) {
-			printf("%zu ", result[i]);
-		}
-		printf("\n");
-
-		free(result);
+	printf("n_scc = %zu\n\n", n_scc);
+	printf("vertex\tscc_id\n");
+	for(size_t i = 0 ; i < G.n_verts ; i++) {
+		printf("%zu\t%zu\n", i, scc_id[i]);
 	}
 
+	free(scc_id);
 
 	free_graph(&G);
 

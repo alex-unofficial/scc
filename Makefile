@@ -7,11 +7,11 @@ PROGRAM=exec
 
 # The directory to put object files in and the object files themselves
 OBJDIR=obj
-OBJ=main.o graph.o mmio.o
+OBJ=main.o graph.o scc.o mmio.o
 OBJFILES=$(addprefix $(OBJDIR)/, $(OBJ))
 
 # Directories with header files
-SRCDIR=src/graph
+SRCDIR=src/graph:src/scc
 EXTERNALDIR=external/matrix-market
 
 # The path make searches for dependency files
