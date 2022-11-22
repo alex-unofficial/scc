@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <errno.h>
 #include <string.h>
@@ -55,7 +56,7 @@ void free_graph(graph *G) {
  * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of neighbours and returns the number of neighbours.
  */
-size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, size_t **neighbours) {
+size_t get_neighbours(size_t vertex, const graph *G, const bool *is_vertex, size_t **neighbours) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex[vertex]) {
 		return 0;
@@ -99,7 +100,7 @@ size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, si
  * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of predecessors and returns the number of predecessors.
  */
-size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, size_t **predecessors) {
+size_t get_predecessors(size_t vertex, const graph *G, const bool *is_vertex, size_t **predecessors) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex[vertex]) {
 		return 0;
@@ -147,8 +148,8 @@ size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, 
  */
 size_t bfs(
 		size_t start_vertex, const graph *G, 
-		size_t (*transfer)(size_t, const graph *, const size_t *, size_t **), 
-		size_t search_property, const size_t *properties, const size_t *is_vertex, 
+		size_t (*transfer)(size_t, const graph *, const bool *, size_t **), 
+		size_t search_property, const size_t *properties, const bool *is_vertex, 
 		size_t **search_result) {
 
 	if(properties[start_vertex] != search_property) return 0;
@@ -221,7 +222,7 @@ size_t bfs(
 // Performs BFS on graph G with transfer=get_neighbours
 size_t forward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const size_t *is_vertex,
+		size_t search_property, const size_t *properties, const bool *is_vertex,
 		size_t **search_result) {
 	return bfs(start_vertex, G, get_neighbours, search_property, properties, is_vertex, search_result);
 }
@@ -229,9 +230,43 @@ size_t forward_bfs(
 // Performs BFS on graph G with transfer=get_predecessors
 size_t backward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const size_t *is_vertex,
+		size_t search_property, const size_t *properties, const bool *is_vertex,
 		size_t **search_result) {
 	return bfs(start_vertex, G, get_predecessors, search_property, properties, is_vertex, search_result);
+}
+
+
+/* Returns true if v is a trivial SCC
+ *
+ * this is the case if v has no neighbours or no predecessors
+ * or if its only neighbour/predecessor is itself
+ */
+int is_trivial_scc(size_t v, const graph *G, const bool *is_vertex) {
+	size_t *N;
+	size_t n_N = get_neighbours(v, G, is_vertex, &N);
+
+	size_t *P;
+	size_t n_P = get_predecessors(v, G, is_vertex, &P);
+
+	if(n_N == 0) {
+		if(n_P > 0) free(P);
+		return 1;
+	}
+
+	if(n_P == 0) {
+		if(n_N > 0) free(N);
+		return 1;
+	}
+
+	if((n_N == 1 && N[0] == v) || (n_P == 1 && P[0] == v)) {
+		free(N);
+		free(P);
+		return 1;
+	}
+
+	free(N);
+	free(P);
+	return 0;
 }
 
 

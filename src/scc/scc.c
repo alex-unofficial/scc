@@ -2,43 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <errno.h>
 
 #include <string.h>
-
-/* Returns true if v is a trivial SCC
- *
- * this is the case if v has no neighbours or no predecessors
- * or if its only neighbour/predecessor is itself
- */
-int is_trivial_scc(size_t v, const graph *G, const size_t *is_vertex) {
-	size_t *N;
-	size_t n_N = get_neighbours(v, G, is_vertex, &N);
-
-	size_t *P;
-	size_t n_P = get_predecessors(v, G, is_vertex, &P);
-
-	if(n_N == 0) {
-		if(n_P > 0) free(P);
-		return 1;
-	}
-
-	if(n_P == 0) {
-		if(n_N > 0) free(N);
-		return 1;
-	}
-
-	if((n_N == 1 && N[0] == v) || (n_P == 1 && P[0] == v)) {
-		free(N);
-		free(P);
-		return 1;
-	}
-
-	free(N);
-	free(P);
-	return 0;
-}
 
 
 /* Implements the graph coloring algorithm to find the SCCs of G
@@ -51,12 +19,12 @@ int is_trivial_scc(size_t v, const graph *G, const size_t *is_vertex) {
  */
 size_t scc_coloring(const graph *G, size_t **scc_id) {
 	
-	size_t *is_vertex = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
 		return 0;
 	}
-	for(size_t v = 0 ; v < G->n_verts ; ++v) is_vertex[v] = 1;
+	for(size_t v = 0 ; v < G->n_verts ; ++v) is_vertex[v] = true;
 	size_t n_active_verts = G->n_verts;
 
 	// allocate the memory required for the scc_id array
@@ -74,9 +42,9 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 	// remove trivial sccs 
 	// the loop will run as long as there are new vertices removed 
 	// since removing a vertex may lead to another vertex becoming trivial
-	int removed_vertex = 1;
+	bool removed_vertex = true;
 	while(removed_vertex) {
-		removed_vertex = 0;
+		removed_vertex = false;
 
 		// loop over all vertices
 		for(size_t v = 0 ; v < G->n_verts ; ++v) {
@@ -88,10 +56,10 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 				n_scc += 1;
 
 				// finally remove the vertex from the graph
-				is_vertex[v] = 0;
+				is_vertex[v] = false;
 				n_active_verts -= 1;
 
-				removed_vertex = 1;
+				removed_vertex = true;
 			}
 		}
 	}
@@ -112,9 +80,9 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 		// this loop will run as long as at least one vertex changed colors in
 		// the last iteration since a vertex changing color might end up changing
 		// the color of its neighbours in the next iteration.
-		int changed_color = 1;
+		bool changed_color = true;
 		while(changed_color) {
-			changed_color = 0;
+			changed_color = false;
 
 			// we loop over all the vertives v in the graph (checking if the v is active)
 			for(size_t v = 0 ; v < G->n_verts ; ++v) {
@@ -134,7 +102,7 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 							size_t u = predecessors[i];
 							if(colors[v] > colors[u]) {
 								colors[v] = colors[u];
-								changed_color = 1;
+								changed_color = true;
 							}
 						}
 
@@ -185,7 +153,7 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 					(*scc_id)[v] = c;
 
 					// finally remove the vertices from the graph
-					is_vertex[v] = 0;
+					is_vertex[v] = false;
 					n_active_verts -= 1;
 				}
 				n_scc += 1;

@@ -2,6 +2,7 @@
 #define GRAPH_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 /* graph is a struct used to represent graphs, by storing their adjacency matrices as
  * sparse pattern matrices, in the CSR and CSC formats.
@@ -38,10 +39,10 @@ void free_graph(graph *G);
 /* transfer functions */
 
 // Gets the neighbours of vertex in graph G.
-size_t get_neighbours(size_t vertex, const graph *G, const size_t *is_vertex, size_t **neighbours);
+size_t get_neighbours(size_t vertex, const graph *G, const bool *is_vertex, size_t **neighbours);
 
 // Gets the predecessors of vertex in graph G.
-size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, size_t **predecesors);
+size_t get_predecessors(size_t vertex, const graph *G, const bool *is_vertex, size_t **predecesors);
 
 
 /* BFS functions */
@@ -50,21 +51,27 @@ size_t get_predecessors(size_t vertex, const graph *G, const size_t *is_vertex, 
 // have search_property and saves the result in search_result
 size_t bfs(
 		size_t start_vertex, const graph *G, 
-		size_t (*transfer)(size_t, const graph *, const size_t *is_vertex, size_t **), 
-		size_t search_property, const size_t *properties, const size_t *is_vertex, 
+		size_t (*transfer)(size_t, const graph *, const bool *is_vertex, size_t **), 
+		size_t search_property, const size_t *properties, const bool *is_vertex, 
 		size_t **search_result);
 
 // Performs BFS on graph G with transfer=get_neighbours
 size_t forward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const size_t *is_vertex, 
+		size_t search_property, const size_t *properties, const bool *is_vertex, 
 		size_t **search_result);
 
 // Performs BFS on graph G with transfer=get_predecessors
 size_t backward_bfs(
 		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const size_t *is_vertex, 
+		size_t search_property, const size_t *properties, const bool *is_vertex, 
 		size_t **search_result);
+
+
+/* SCC helper functions */
+
+// Returns true if v is a trivial SCC
+int is_trivial_scc(size_t v, const graph *G, const bool *is_vertex);
 
 
 /* graph import function */
