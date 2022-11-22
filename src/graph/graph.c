@@ -441,7 +441,7 @@ int import_graph(char *mtx_fname, graph *G) {
 			fscanf_match_count = fscanf(mtx_file, "%zu %zu %d\n", &row, &col, &val);
 		} else if(mm_is_real(mtx_type)) {
 			double val;
-			fscanf_match_count = fscanf(mtx_file, "%zu %zu %f\n", &row, &col, &val);
+			fscanf_match_count = fscanf(mtx_file, "%zu %zu %lf\n", &row, &col, &val);
 		} else {
 			fprintf(stderr, "MatrixMarket file is of unsupported format: %s\n", mtx_fname);
 

@@ -8,7 +8,7 @@
 #include <graph.h>
 #include <scc.h>
 
-int main(size_t argc, char **argv) {
+int main(int argc, char **argv) {
 	srand(time(NULL));
 
 	char* mtx_fname = NULL;
