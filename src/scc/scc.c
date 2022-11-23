@@ -154,10 +154,9 @@ size_t scc_coloring(const graph *G, size_t **scc_id) {
 
 					// finally remove the vertices from the graph
 					is_vertex[v] = false;
-					n_active_verts -= 1;
 				}
+				n_active_verts -= n_scc_c;
 				n_scc += 1;
-
 
 				free(scc_c);
 			}

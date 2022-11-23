@@ -1,17 +1,18 @@
 # The C Compiler and Compiler flags
 CC=gcc
-CFLAGS=-g3
+CFLAGS=-g
+LDFLAGS=-lpthread
 
 # The name of the executable
 PROGRAM=exec
 
 # The directory to put object files in and the object files themselves
 OBJDIR=obj
-OBJ=main.o graph.o scc.o mmio.o
+OBJ=main.o graph.o scc.o scc_pthreads.o mmio.o
 OBJFILES=$(addprefix $(OBJDIR)/, $(OBJ))
 
 # Directories with header files
-SRCDIR=src/graph:src/scc
+SRCDIR=src/graph:src/scc:src/scc_pthreads
 EXTERNALDIR=external/matrix-market
 
 # The path make searches for dependency files
@@ -25,7 +26,7 @@ all: $(PROGRAM)
 
 # Linking the object files into the final executable
 $(PROGRAM): $(OBJFILES)
-	$(CC) $(CFLAGS) $(OBJFILES) -o $(PROGRAM)
+	$(CC) $(CFLAGS) $(OBJFILES) -o $(PROGRAM) $(LDFLAGS)
 
 # Compiling the C files into object files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
