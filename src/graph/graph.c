@@ -282,7 +282,7 @@ int is_trivial_scc(size_t v, const graph *G, const bool *is_vertex) {
  * 			1 if row_a > row_b or if row_a = row_b and col_a > col_b
  * 			0 if row_a = row_b and col_a = col_b
  */
-int comp_row(const void *a, const void *b) {
+static int comp_row(const void *a, const void *b) {
 	size_t row_a = (*(size_t**)a)[0];
 	size_t row_b = (*(size_t**)b)[0];
 
@@ -309,7 +309,7 @@ int comp_row(const void *a, const void *b) {
  * 			1 if col_a > col_b or if col_a = col_b and row_a > row_b
  * 			0 if col_a = col_b and row_a = row_b
  */
-int comp_col(const void *a, const void *b) {
+static int comp_col(const void *a, const void *b) {
 	size_t row_a = (*(size_t**)a)[0];
 	size_t row_b = (*(size_t**)b)[0];
 

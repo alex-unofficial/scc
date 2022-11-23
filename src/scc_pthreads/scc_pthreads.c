@@ -9,38 +9,58 @@
 
 #include <string.h>
 
-
 #define NUMTHREADS 4
 
 
+/* This function is meant to be executed inside a thread.
+ *
+ * it initializes the is_vertex array between vertices start and end
+ */
 struct init_vertex_args {
 	size_t start;
 	size_t end;
+
 	bool *is_vertex;
 
 }; static void *p_init_is_vertex(void *args) {
 	struct init_vertex_args *ivargs = (struct init_vertex_args *) args;
+
+	// loop over all vertices between start and end
 	for(size_t v = ivargs->start ; v < ivargs->end ; ++v) {
+		// initialize is_vertex[v] as true
 		ivargs->is_vertex[v] = true;
 	}
 	return NULL;
 } 
 
 
+/* This function is meant to be executed inside a thread.
+ *
+ * it initializes the colors array between vertices start and end
+ */
 struct init_colors_args {
 	size_t start;
 	size_t end;
+
 	size_t *colors;
 
 }; static void *p_init_colors(void *args) {
 	struct init_colors_args *icargs = (struct init_colors_args *) args;
+
+	// loop over all vertices between start and end
 	for(size_t v = icargs->start ; v < icargs->end ; ++v) {
+		// initialize colors[v] := v
 		icargs->colors[v] = v;
 	}
 	return NULL;
 }
 
 
+/* This function is meant to be executed inside a thread.
+ *
+ * it initializes the unique_colors array between vertices start and end
+ * it appends all unique colors to the unique_colors array;
+ */
 struct init_unique_colors_args {
 	size_t start;
 	size_t end;
@@ -56,11 +76,15 @@ struct init_unique_colors_args {
 }; static void *p_init_unique_colors(void *args) {
 	struct init_unique_colors_args *iucargs = (struct init_unique_colors_args *)args;
 
-	// from the way colors was initialized, the unique colors are 
-	// those of the vertices v such that colors[v] = v, then c := v.
-	// we append c to the unique_colors array
+	// loop over all vertices between start and end
 	for(size_t v = iucargs->start ; v < iucargs->end ; ++v) {
+		// from the way colors was initialized, the unique colors are 
+		// those of the vertices v such that colors[v] = v, then c := v.
+		// we append c to the unique_colors array
 		if(iucargs->is_vertex[v] && iucargs->colors[v] == v) {
+			// n_colors is shared between the threads so we need a mutex to protect it.
+			// this won't hinder performance too much since the unique colors are generally
+			// much fewer than the vertices.
 			pthread_mutex_lock(iucargs->n_colors_lock);
 			iucargs->unique_colors[(*(iucargs->n_colors))++] = v;
 			pthread_mutex_unlock(iucargs->n_colors_lock);
@@ -69,6 +93,11 @@ struct init_unique_colors_args {
 }
 
 
+/* This function is meant to be executed inside a thread.
+ *
+ * it performs one iteration of the trimming procedure for vertices between start and end,
+ * meaning it removes all vertices with in-degree or out-degree of zero (excluding self loops).
+ */
 struct trimming_args {
 	size_t start;
 	size_t end;
@@ -84,6 +113,9 @@ struct trimming_args {
 }; static void *p_trimming(void *args) {
 	struct trimming_args *trargs = (struct trimming_args *) args;
 
+	// n_scc_t holds the number of sccs that were found in this thread
+	// this will be added to n_scc after the thread is joined with the 
+	// main thread.
 	trargs->n_scc_t = 0;
 
 	// loop over all vertices between start and end
@@ -104,6 +136,13 @@ struct trimming_args {
 	return NULL;
 }
 
+
+/* This function is meant to be executed inside a thread.
+ *
+ * it performs one iteration of the coloring procedure for vertices between start and end,
+ * meaning for each vertex it sets its color as the minimum of the colors of its immediate
+ * predecessors (or itself).
+ */
 struct coloring_args {
 	size_t start;
 	size_t end;
@@ -121,11 +160,12 @@ struct coloring_args {
 	// we loop over all the vertives v in the graph between start and end (checking if v is active)
 	for(size_t v = colargs->start ; v < colargs->end ; ++v) {
 		if(colargs->is_vertex[v]) {
+
 			// we get the predecessors of the vertex v (vertices u such that [u, v] in G)
 			// because we want to write in one memory position (colors[v])
 			// as opposed to every u for each v. this is useful for 
-			// the parallelization since memory locations the treads
-			// write to will not interfere.
+			// the parallelization since the memory locations that 
+			// the treads write to will not interfere with each other.
 
 			size_t *predecessors;
 			size_t n_predecessors = get_predecessors(v, colargs->G, colargs->is_vertex, &predecessors);
@@ -149,6 +189,14 @@ struct coloring_args {
 	return NULL;
 }
 
+
+/* This function is meant to be executed inside a thread.
+ *
+ * it finds the scc starting from root c for all c in unique colors between start and end,
+ * meaing it berforms backward BFS on the subgraph of G that contains the vertices of color c
+ * and returns all the vertices reached (the new SCC). it then saves the SCC and removes
+ * all vertices of the subgraph from G.
+ */
 struct get_sccs_args {
 	size_t start;
 	size_t end;
@@ -162,13 +210,16 @@ struct get_sccs_args {
 	size_t **scc_id;
 	
 	size_t n_scc_t;
-	size_t n_vert_removed;
+	size_t n_vert_removed_t;
 
 }; static void *p_get_sccs(void *args) {
 	struct get_sccs_args *sccargs = (struct get_sccs_args *) args;
 
+	// n_scc_t and n_vert_removed_t contain the number of SCCs found and the number
+	// of vertices removed in the thread respectively.
+	// these will be added/removed with their respective counterparts in the main thread.
 	sccargs->n_scc_t = 0;
-	sccargs->n_vert_removed = 0;
+	sccargs->n_vert_removed_t = 0;
 
 	// then loop over all the unique colors c between start and end
 	for(size_t i = sccargs->start ; i < sccargs->end ; ++i) {
@@ -189,13 +240,15 @@ struct get_sccs_args {
 				sccargs->is_vertex[v] = false;
 			}
 
-			sccargs->n_vert_removed += n_scc_c;
+			// each unique color corresponds to one SCC and removes n_scc_c vertices
+			sccargs->n_vert_removed_t += n_scc_c;
 			sccargs->n_scc_t += 1;
 
 			free(scc_c);
 		}
 	}
 }
+
 
 /* Implements the graph coloring algorithm to find the SCCs of G
  *
@@ -207,9 +260,13 @@ struct get_sccs_args {
  */
 size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 
+	// create NUMTHREADS threads
 	pthread_t threads[NUMTHREADS];
+
+	// the block size refers to the number of vertices that each thread will be responsible for.
 	const size_t p_block_size = G->n_verts / NUMTHREADS;
 	
+	// allocate the memory required for the is_vertex array
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
@@ -226,7 +283,7 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 		pthread_create(&threads[i], NULL, p_init_is_vertex, &ivargs[i]);
 	} for(int i = 0 ; i < NUMTHREADS ; ++i) pthread_join(threads[i], NULL);
 	
-
+	// initialize n_active_verts to n_verts
 	size_t n_active_verts = G->n_verts;
 
 	// allocate the memory required for the scc_id array
@@ -350,8 +407,8 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 		// free the extra memory allocated to unique_colors
 		unique_colors = (size_t *) realloc(unique_colors, n_colors * sizeof(size_t));
 
+		// then get the SCCs for each unique color in parallel
 		size_t p_color_block_size = n_colors / NUMTHREADS;
-
 		struct get_sccs_args sccargs[NUMTHREADS];
 		for(int i = 0 ; i < NUMTHREADS ; ++i) {
 			sccargs[i].start = i * p_color_block_size;
@@ -369,7 +426,7 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 			pthread_join(threads[i], NULL);
 			
 			n_scc += sccargs[i].n_scc_t;
-			n_active_verts -= sccargs[i].n_vert_removed;
+			n_active_verts -= sccargs[i].n_vert_removed_t;
 		}
 
 		free(unique_colors);
