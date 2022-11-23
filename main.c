@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
 	for(size_t i = 0 ; i < G.n_verts ; i++) { 
 		if(scc_id[i] != p_scc_id[i]) {
 			printf(
-					"error: non matching value at vertex %zu\nserial scc_id = %zu, pthread scc_id = %zu\n",
-					i, scc_id[i], p_scc_id[i]
-				);
+				"error: non matching value at vertex %zu\nserial scc_id = %zu, pthread scc_id = %zu\n",
+				i, scc_id[i], p_scc_id[i]
+			);
 		}
 	}
 
