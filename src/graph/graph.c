@@ -16,7 +16,10 @@
  *
  * the matrix struct should be freed by using free_matrix(&csc)
  */
-int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
+graph *initialize_graph(size_t n_verts, size_t n_edges) {
+	graph *G = (graph *) malloc(sizeof(graph));
+	if(G == NULL) return NULL;
+
 	// initializing the variables
 	G->n_verts = n_verts;
 	G->n_edges = n_edges;
@@ -30,10 +33,10 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	G->csc_col_id = (edge_t *) malloc((n_verts + 1) * sizeof(edge_t));
 
 	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL || G->csc_row_id == NULL)  {
-		return errno;
+		return NULL;
 	}
 
-	return 0;
+	return G;
 }
 
 /* Free the memory allocated to a graph struct
@@ -46,6 +49,8 @@ void free_graph(graph *G) {
 
 	free(G->csc_col_id);
 	free(G->csc_row_id);
+
+	free(G);
 }
 
 
@@ -68,12 +73,12 @@ ssize_t get_neighbours(vert_t vertex, const graph *G, const bool *is_vertex, ver
 	edge_t col_index_end = G->csr_row_id[vertex + 1];
 	size_t neighbour_count = col_index_end - col_index_start;
 
-	// checks if there are even any neighbours
+	// checks if there are any neighbours
 	if(neighbour_count > 0) {
 		// allocates the required memory and handles for errors
 		*neighbours = (vert_t *) malloc(neighbour_count * sizeof(vert_t));
 		if(*neighbours == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 			return -1;
 		}
 
@@ -110,12 +115,12 @@ ssize_t get_predecessors(vert_t vertex, const graph *G, const bool *is_vertex, v
 	edge_t row_index_end = G->csc_col_id[vertex + 1];
 	size_t predecessor_count = row_index_end - row_index_start;
 
-	// checks if there are even any predecessors
+	// checks if there are any predecessors
 	if(predecessor_count > 0) {
 		// allocates the required memory and handles for errors
 		*predecessors = (vert_t *) malloc(predecessor_count * sizeof(vert_t));
 		if(*predecessors == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 			return -1;
 		}
 
@@ -157,7 +162,7 @@ ssize_t bfs(
 	// initialize visited array. this will contain all vertices visited
 	bool *visited = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(visited == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 		return -1;
 	}
 
@@ -169,7 +174,7 @@ ssize_t bfs(
 	// tail position of the queue
 	vert_t *vertex_queue = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 	if(vertex_queue == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 
 		free(visited);
 		return -1;
@@ -340,14 +345,13 @@ static int comp_col(const void *a, const void *b) {
  * we are concerned mostly with the shape of the graph the matrix represents so the
  * values are discarded, and only the location of the nonzero elements is saved.
  */
-int import_graph(char *mtx_fname, graph *G) {
+graph *import_graph(char *mtx_fname) {
 
 	// Attempt to open the file mtx_fname and checking for errors.
 	FILE *mtx_file = NULL;
 	mtx_file = fopen(mtx_fname, "r"); if(mtx_file == NULL) { 
-		int err = errno;
-		fprintf(stderr, "Error opening file: %s\n%s\n", mtx_fname, strerror(err));
-		return -1;
+		fprintf(stderr, "Error opening file: %s\n%s\n", mtx_fname, strerror(errno));
+		return NULL;
 	}
 
 	// The typecode struct stores information about the type of matrix the .mtx file represents
@@ -361,7 +365,7 @@ int import_graph(char *mtx_fname, graph *G) {
 
 		switch(mm_read_err_code) {
 			case MM_PREMATURE_EOF:
-				fprintf(stderr, "Items missing from file header\n\t");
+				fprintf(stderr, "Items missing from file header\n");
 				break;
 			case MM_NO_HEADER:
 				fprintf(stderr, "File missing header\n");
@@ -375,7 +379,7 @@ int import_graph(char *mtx_fname, graph *G) {
 		}
 
 		fclose(mtx_file);
-		return -1;
+		return NULL;
 	}
 
 	// the dimensions of the matrix and the nonzero elements
@@ -392,7 +396,7 @@ int import_graph(char *mtx_fname, graph *G) {
 		free(type);
 
 		fclose(mtx_file);
-		return -1;
+		return NULL;
 	}
 
 	// Handle errors related to reading the size information
@@ -409,7 +413,7 @@ int import_graph(char *mtx_fname, graph *G) {
 		}
 
 		fclose(mtx_file);
-		return -1;
+		return NULL;
 	}
 
 	// graph adjacent matrices are square. fail if n_rows != n_cols
@@ -419,7 +423,7 @@ int import_graph(char *mtx_fname, graph *G) {
 				mtx_fname);
 
 		fclose(mtx_file);
-		return -1;
+		return NULL;
 	}
 
 	// indices will store the pairs of row, column indices of nonzero elements
@@ -427,22 +431,32 @@ int import_graph(char *mtx_fname, graph *G) {
 	vert_t **indices;
 
 	// there are n_nz such pairs of indices
-	indices = (vert_t **) malloc(n_nz * sizeof(vert_t *));
+	indices = (vert_t **) malloc(n_nz * sizeof(vert_t *)); if(indices == NULL) {
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
+
+		fclose(mtx_file);
+		return NULL;
+	}
+
 	for(edge_t i = 0 ; i < n_nz ; ++i) {
 		indices[i] = (vert_t *) malloc(2 * sizeof(vert_t));
 
 		vert_t row, col;
 
+		int fscanf_match_needed = 0;
 		int fscanf_match_count = 0;
 		// get the indices from the file, depending on the type of Matrix in the file,
 		// discarding the value of the matrix if needed.
 		if(mm_is_pattern(mtx_type)) {
+			fscanf_match_needed = 2;
 			fscanf_match_count = fscanf(mtx_file, "%u %u\n", &row, &col);
 		} else if(mm_is_integer(mtx_type)) {
 			int val;
+			fscanf_match_needed = 3;
 			fscanf_match_count = fscanf(mtx_file, "%u %u %d\n", &row, &col, &val);
 		} else if(mm_is_real(mtx_type)) {
 			double val;
+			fscanf_match_needed = 3;
 			fscanf_match_count = fscanf(mtx_file, "%u %u %lf\n", &row, &col, &val);
 		} else {
 			fprintf(stderr, "MatrixMarket file is of unsupported format: %s\n", mtx_fname);
@@ -451,32 +465,39 @@ int import_graph(char *mtx_fname, graph *G) {
 			free(indices);
 
 			fclose(mtx_file);
-			return -1;
+			return NULL;
 		}
 
 		if(fscanf_match_count == EOF) {
-			int fscanf_err_code = -1;
-
 			if(ferror(mtx_file)) {
-				fscanf_err_code = errno;
-				fprintf(stderr, "Error reading from %s:\n%s\n", mtx_fname, strerror(fscanf_err_code));
+				fprintf(stderr, "Error: reading from %s\n", mtx_fname);
 			} else {
-				fprintf(stderr, "Error reading from %s:\nfscanf matching failure\n", mtx_fname);
+				fprintf(stderr, "Error: fscanf matching failure for %s\n", mtx_fname);
 			}
 			
 			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
 			free(indices);
 
 			fclose(mtx_file);
-			return -1;
-		} else if(fscanf_match_count == 0) {
+			return NULL;
+		} else if(fscanf_match_count < fscanf_match_needed) {
 			fprintf(stderr, "Error reading from %s:\nfscanf early matching failure\n", mtx_fname);
 
 			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
 			free(indices);
 
 			fclose(mtx_file);
-			return -1;
+			return NULL;
+		}
+
+		if(row > n_rows || col > n_cols) {
+			fprintf(stderr, "Invalid index in .mtx file %s\n", mtx_fname);
+
+			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
+			free(indices);
+
+			fclose(mtx_file);
+			return NULL;
 		}
 
 		indices[i][0] = row - 1;
@@ -492,15 +513,14 @@ int import_graph(char *mtx_fname, graph *G) {
 	size_t n_edges = n_nz;
 
 	// initialize the graph struct and handle errors
-	int mtx_init_err_code = 0;
-	mtx_init_err_code = initialize_graph(G, n_verts, n_edges);
-	if(mtx_init_err_code) {
-		fprintf(stderr, "Error initializing CSC matrix: %s\n%s\n", mtx_fname, strerror(mtx_init_err_code));
+	graph *G = NULL;
+	if((G = initialize_graph(n_verts, n_edges)) == NULL) {
+		fprintf(stderr, "Error initializing CSC matrix: %s\n%s\n", mtx_fname, strerror(ENOMEM));
 
 		for(edge_t j = 0 ; j < n_nz ; ++j) free(indices[j]);
 		free(indices);
 
-		return -1;
+		return NULL;
 	}
 
 
@@ -571,6 +591,6 @@ int import_graph(char *mtx_fname, graph *G) {
 	for(edge_t j = 0 ; j < n_nz ; ++j) free(indices[j]);
 	free(indices);
 
-	return 0;
+	return G;
 }
 

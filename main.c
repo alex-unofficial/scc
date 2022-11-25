@@ -22,30 +22,25 @@ int main(int argc, char **argv) {
 	}
 	mtx_fname = argv[1];
 
-	printf("Importing graph %s ", mtx_fname);
-	graph G;
-	if(import_graph(mtx_fname, &G)) {
-		return -1;
-	}
-	printf("-- Done\n");
+	printf("Importing graph %s \n", mtx_fname);
+	graph *G = import_graph(mtx_fname);
+	if(G == NULL) return -1;
 
 	printf("\n");
 
 	struct timeval t1, t2;
 	double elapsedtime;
 
-	printf("Using serialized SCC algorithm ");
+	printf("Using serialized SCC algorithm \n");
 	vert_t *scc_id;
 	gettimeofday(&t1, NULL);
-	ssize_t n_scc = scc_coloring(&G, &scc_id);
+	ssize_t n_scc = scc_coloring(G, &scc_id);
 	gettimeofday(&t2, NULL);
 
 	if(n_scc == -1) {
-		free_graph(&G);
+		free_graph(G);
 		return -1;
 	}
-
-	printf("-- Done\n");
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
 	elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
@@ -54,18 +49,16 @@ int main(int argc, char **argv) {
 	printf("\n");
 
 	vert_t *p_scc_id;
-	printf("Using pthreads SCC algorithm ");
+	printf("Using pthreads SCC algorithm \n");
 	gettimeofday(&t1, NULL);
-	ssize_t p_n_scc = p_scc_coloring(&G, &p_scc_id);
+	ssize_t p_n_scc = p_scc_coloring(G, &p_scc_id);
 	gettimeofday(&t2, NULL);
 
 	if(p_n_scc == -1) {
 		free(scc_id);
-		free_graph(&G);
+		free_graph(G);
 		return -1;
 	}
-
-	printf("-- Done\n");
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
 	elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
@@ -76,7 +69,7 @@ int main(int argc, char **argv) {
 	printf("n_scc = %zd\n", n_scc);
 	printf("p_n_scc = %zd\n", p_n_scc);
 
-	for(vert_t i = 0 ; i < G.n_verts ; i++) { 
+	for(vert_t i = 0 ; i < G->n_verts ; i++) { 
 		if(scc_id[i] != p_scc_id[i]) {
 			printf(
 				"error: non matching value at vertex %u\nserial scc_id = %u, pthread scc_id = %u\n",
@@ -88,7 +81,7 @@ int main(int argc, char **argv) {
 	free(scc_id);
 	free(p_scc_id);
 
-	free_graph(&G);
+	free_graph(G);
 
 	return 0;
 }

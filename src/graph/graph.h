@@ -36,7 +36,7 @@ typedef struct graph{
 /* initialization and free functions */
 
 // Initialize a graph struct in the CSC and CSR format.
-int initialize_graph(graph *G, size_t n_verts, size_t n_edges);
+graph *initialize_graph(size_t n_verts, size_t n_edges);
 
 // Free the memory allocated to a graph struct
 void free_graph(graph *G);
@@ -83,6 +83,6 @@ int is_trivial_scc(vert_t v, const graph *G, const bool *is_vertex);
 /* graph import function */
 
 // Imports a graph's adj. matrix from a MatrixMarket .mtx file and stores it in a graph struct
-int import_graph(char *mtx_fname, graph *G);
+graph *import_graph(char *mtx_fname);
 
 #endif
