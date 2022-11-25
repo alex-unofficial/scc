@@ -6,3 +6,6 @@ obj/*
 
 # the example matrices
 example-matrices/*
+
+# valgrind files
+vgcore.*

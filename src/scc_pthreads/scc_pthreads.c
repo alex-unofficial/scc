@@ -17,8 +17,8 @@
  * it initializes the is_vertex array between vertices start and end
  */
 struct init_vertex_args {
-	size_t start;
-	size_t end;
+	vert_t start;
+	vert_t end;
 
 	bool *is_vertex;
 
@@ -26,7 +26,7 @@ struct init_vertex_args {
 	struct init_vertex_args *ivargs = (struct init_vertex_args *) args;
 
 	// loop over all vertices between start and end
-	for(size_t v = ivargs->start ; v < ivargs->end ; ++v) {
+	for(vert_t v = ivargs->start ; v < ivargs->end ; ++v) {
 		// initialize is_vertex[v] as true
 		ivargs->is_vertex[v] = true;
 	}
@@ -39,16 +39,16 @@ struct init_vertex_args {
  * it initializes the colors array between vertices start and end
  */
 struct init_colors_args {
-	size_t start;
-	size_t end;
+	vert_t start;
+	vert_t end;
 
-	size_t *colors;
+	vert_t *colors;
 
 }; static void *p_init_colors(void *args) {
 	struct init_colors_args *icargs = (struct init_colors_args *) args;
 
 	// loop over all vertices between start and end
-	for(size_t v = icargs->start ; v < icargs->end ; ++v) {
+	for(vert_t v = icargs->start ; v < icargs->end ; ++v) {
 		// initialize colors[v] := v
 		icargs->colors[v] = v;
 	}
@@ -62,13 +62,13 @@ struct init_colors_args {
  * it appends all unique colors to the unique_colors array;
  */
 struct init_unique_colors_args {
-	size_t start;
-	size_t end;
+	vert_t start;
+	vert_t end;
 
 	bool *is_vertex;
-	size_t *colors;
+	vert_t *colors;
 
-	size_t *unique_colors;
+	vert_t *unique_colors;
 	size_t *n_colors;
 
 	pthread_mutex_t *n_colors_lock;
@@ -77,7 +77,7 @@ struct init_unique_colors_args {
 	struct init_unique_colors_args *iucargs = (struct init_unique_colors_args *)args;
 
 	// loop over all vertices between start and end
-	for(size_t v = iucargs->start ; v < iucargs->end ; ++v) {
+	for(vert_t v = iucargs->start ; v < iucargs->end ; ++v) {
 		// from the way colors was initialized, the unique colors are 
 		// those of the vertices v such that colors[v] = v, then c := v.
 		// we append c to the unique_colors array
@@ -99,33 +99,33 @@ struct init_unique_colors_args {
  * meaning it removes all vertices with in-degree or out-degree of zero (excluding self loops).
  */
 struct trimming_args {
-	size_t start;
-	size_t end;
+	vert_t start;
+	vert_t end;
 
 	const graph *G;
 	bool *is_vertex;
 
 	bool *removed_vertex;
 
-	size_t **scc_id;
-	size_t n_scc_t;
+	vert_t **scc_id;
+	size_t n_scc_thd;
 
 }; static void *p_trimming(void *args) {
 	struct trimming_args *trargs = (struct trimming_args *) args;
 
-	// n_scc_t holds the number of sccs that were found in this thread
+	// n_scc_thd holds the number of sccs that were found in this thread
 	// this will be added to n_scc after the thread is joined with the 
 	// main thread.
-	trargs->n_scc_t = 0;
+	trargs->n_scc_thd = 0;
 
 	// loop over all vertices between start and end
-	for(size_t v = trargs->start ; v < trargs->end ; ++v) {
+	for(vert_t v = trargs->start ; v < trargs->end ; ++v) {
 		// check if the vertex is active, and then if it is trivial
 		if(trargs->is_vertex[v] && is_trivial_scc(v, trargs->G, trargs->is_vertex)) {
 			// if it is, set scc_id for the vertex to be itself
 			// and increase the number of sccs
 			(*(trargs->scc_id))[v] = v;
-			trargs->n_scc_t += 1;
+			trargs->n_scc_thd += 1;
 
 			// finally remove the vertex from the graph
 			trargs->is_vertex[v] = false;
@@ -144,21 +144,21 @@ struct trimming_args {
  * predecessors (or itself).
  */
 struct coloring_args {
-	size_t start;
-	size_t end;
+	vert_t start;
+	vert_t end;
 
 	const graph *G;
 	bool *is_vertex;
 
 	bool *changed_color;
 
-	size_t *colors;
+	vert_t *colors;
 
 }; static void *p_coloring(void *args) {
 	struct coloring_args *colargs = (struct coloring_args *) args;
 
 	// we loop over all the vertives v in the graph between start and end (checking if v is active)
-	for(size_t v = colargs->start ; v < colargs->end ; ++v) {
+	for(vert_t v = colargs->start ; v < colargs->end ; ++v) {
 		if(colargs->is_vertex[v]) {
 
 			// we get the predecessors of the vertex v (vertices u such that [u, v] in G)
@@ -167,13 +167,13 @@ struct coloring_args {
 			// the parallelization since the memory locations that 
 			// the treads write to will not interfere with each other.
 
-			size_t *predecessors;
-			size_t n_predecessors = get_predecessors(v, colargs->G, colargs->is_vertex, &predecessors);
+			vert_t *predecessors;
+			ssize_t n_predecessors = get_predecessors(v, colargs->G, colargs->is_vertex, &predecessors);
 
 			if(n_predecessors > 0) {
 				// then we set colors[v] to be the minimum of its predecessors (or itself)
 				for(size_t i = 0 ; i < n_predecessors ; ++i) {
-					size_t u = predecessors[i];
+					vert_t u = predecessors[i];
 					if(colargs->colors[v] > colargs->colors[u]) {
 						colargs->colors[v] = colargs->colors[u];
 						*(colargs->changed_color) = true;
@@ -201,39 +201,39 @@ struct get_sccs_args {
 	size_t start;
 	size_t end;
 
+	size_t n_scc_thd;
+	size_t n_vert_removed_thd;
+
 	const graph *G;
 	bool *is_vertex;
 
-	size_t *colors;
-	size_t *unique_colors;
+	vert_t *colors;
+	vert_t *unique_colors;
 
-	size_t **scc_id;
-	
-	size_t n_scc_t;
-	size_t n_vert_removed_t;
+	vert_t **scc_id;
 
 }; static void *p_get_sccs(void *args) {
 	struct get_sccs_args *sccargs = (struct get_sccs_args *) args;
 
-	// n_scc_t and n_vert_removed_t contain the number of SCCs found and the number
+	// n_scc_thd and n_vert_removed_thd contain the number of SCCs found and the number
 	// of vertices removed in the thread respectively.
 	// these will be added/removed with their respective counterparts in the main thread.
-	sccargs->n_scc_t = 0;
-	sccargs->n_vert_removed_t = 0;
+	sccargs->n_scc_thd = 0;
+	sccargs->n_vert_removed_thd = 0;
 
 	// then loop over all the unique colors c between start and end
 	for(size_t i = sccargs->start ; i < sccargs->end ; ++i) {
-		size_t c = sccargs->unique_colors[i];
+		vert_t c = sccargs->unique_colors[i];
 
 		// perform a backward bfs on the subgraph of G where colors[v] = c
 		// these create a new scc
-		size_t *scc_c;
-		size_t n_scc_c = backward_bfs(c, sccargs->G, c, sccargs->colors, sccargs->is_vertex, &scc_c);
+		vert_t *scc_c;
+		ssize_t n_scc_c = backward_bfs(c, sccargs->G, c, sccargs->colors, sccargs->is_vertex, &scc_c);
 
 		if(n_scc_c > 0) {
 			// for each vertex in the new scc set scc_id = c and increase n_scc
 			for(size_t j = 0 ; j < n_scc_c ; ++j) {
-				size_t v = scc_c[j];
+				vert_t v = scc_c[j];
 				(*(sccargs->scc_id))[v] = c;
 
 				// finally remove the vertices from the graph
@@ -241,8 +241,8 @@ struct get_sccs_args {
 			}
 
 			// each unique color corresponds to one SCC and removes n_scc_c vertices
-			sccargs->n_vert_removed_t += n_scc_c;
-			sccargs->n_scc_t += 1;
+			sccargs->n_vert_removed_thd += n_scc_c;
+			sccargs->n_scc_thd += 1;
 
 			free(scc_c);
 		}
@@ -258,7 +258,7 @@ struct get_sccs_args {
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
-size_t p_scc_coloring(const graph *G, size_t **scc_id) {
+ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 
 	// create NUMTHREADS threads
 	pthread_t threads[NUMTHREADS];
@@ -270,7 +270,7 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-		return 0;
+		return -1;
 	}
 
 	// initialize the is_vertex array in parallel
@@ -287,12 +287,12 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 	size_t n_active_verts = G->n_verts;
 
 	// allocate the memory required for the scc_id array
-	*scc_id = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	*scc_id = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 	if(*scc_id == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
 
 		free(is_vertex);
-		return 0;
+		return -1;
 	}
 
 	// initialize n_sccs to 0
@@ -321,8 +321,8 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 		} for(int i = 0 ; i < NUMTHREADS ; ++i) {
 			pthread_join(threads[i], NULL);
 
-			n_scc += trargs[i].n_scc_t;
-			n_active_verts -= trargs[i].n_scc_t;
+			n_scc += trargs[i].n_scc_thd;
+			n_active_verts -= trargs[i].n_scc_thd;
 		}
 	}
 
@@ -330,12 +330,13 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 	// this will run as long as G is non empty
 	while(n_active_verts > 0) {
 		// initialize the colors array as colors(v) = v for each v in G
-		size_t *colors = (size_t *) malloc(G->n_verts * sizeof(size_t));
+		vert_t *colors = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 		if(colors == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+
 			free(is_vertex);
 			free(*scc_id);
-			return 0;
+			return -1;
 		}
 
 		// initializing the colors array in parallel
@@ -374,7 +375,7 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 
 		// after the coloring is finished we need to find all the unique colors c in the colors array
 		// there may be up to n_verts unique colors (one for each vertex)
-		size_t *unique_colors = (size_t *) malloc(G->n_verts * sizeof(size_t));
+		vert_t *unique_colors = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 		if(unique_colors == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
 			free(is_vertex);
@@ -405,7 +406,7 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 		
 
 		// free the extra memory allocated to unique_colors
-		unique_colors = (size_t *) realloc(unique_colors, n_colors * sizeof(size_t));
+		unique_colors = (vert_t *) realloc(unique_colors, n_colors * sizeof(vert_t));
 
 		// then get the SCCs for each unique color in parallel
 		size_t p_color_block_size = n_colors / NUMTHREADS;
@@ -425,8 +426,8 @@ size_t p_scc_coloring(const graph *G, size_t **scc_id) {
 		} for (int i = 0 ; i < NUMTHREADS ; ++i) {
 			pthread_join(threads[i], NULL);
 			
-			n_scc += sccargs[i].n_scc_t;
-			n_active_verts -= sccargs[i].n_vert_removed_t;
+			n_scc += sccargs[i].n_scc_thd;
+			n_active_verts -= sccargs[i].n_vert_removed_thd;
 		}
 
 		free(unique_colors);

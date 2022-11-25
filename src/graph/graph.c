@@ -22,12 +22,12 @@ int initialize_graph(graph *G, size_t n_verts, size_t n_edges) {
 	G->n_edges = n_edges;
 
 	// in CSR format, col_id is of size n_edges and row_id of size n_verts + 1
-	G->csr_col_id = (size_t *) malloc(n_edges * sizeof(size_t));
-	G->csr_row_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
+	G->csr_col_id = (vert_t *) malloc(n_edges * sizeof(vert_t));
+	G->csr_row_id = (edge_t *) malloc((n_verts + 1) * sizeof(edge_t));
 
 	// in CSC format, row_id is of size n_edges and col_id of size n_verts + 1
-	G->csc_row_id = (size_t *) malloc(n_edges * sizeof(size_t));
-	G->csc_col_id = (size_t *) malloc((n_verts + 1) * sizeof(size_t));
+	G->csc_row_id = (vert_t *) malloc(n_edges * sizeof(vert_t));
+	G->csc_col_id = (edge_t *) malloc((n_verts + 1) * sizeof(edge_t));
 
 	if (G->csr_col_id == NULL || G->csr_row_id == NULL || G->csc_col_id == NULL || G->csc_row_id == NULL)  {
 		return errno;
@@ -56,7 +56,7 @@ void free_graph(graph *G) {
  * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of neighbours and returns the number of neighbours.
  */
-size_t get_neighbours(size_t vertex, const graph *G, const bool *is_vertex, size_t **neighbours) {
+ssize_t get_neighbours(vert_t vertex, const graph *G, const bool *is_vertex, vert_t **neighbours) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex[vertex]) {
 		return 0;
@@ -64,30 +64,30 @@ size_t get_neighbours(size_t vertex, const graph *G, const bool *is_vertex, size
 
 	// in the CSR format the vertices u that a given vertex v point to are given
 	// in the col_id array at indices row_id[v]..row_id[v+1]
-	size_t col_index_start = G->csr_row_id[vertex];
-	size_t col_index_end = G->csr_row_id[vertex + 1];
+	edge_t col_index_start = G->csr_row_id[vertex];
+	edge_t col_index_end = G->csr_row_id[vertex + 1];
 	size_t neighbour_count = col_index_end - col_index_start;
 
 	// checks if there are even any neighbours
 	if(neighbour_count > 0) {
 		// allocates the required memory and handles for errors
-		*neighbours = (size_t *) malloc(neighbour_count * sizeof(size_t));
+		*neighbours = (vert_t *) malloc(neighbour_count * sizeof(vert_t));
 		if(*neighbours == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-			return 0;
+			return -1;
 		}
 
 		// then fills the array with the correct data
 		size_t j = 0;
 		for(size_t i = 0; i < neighbour_count ; ++i) {
-			size_t vertex_to_add = G->csr_col_id[col_index_start + i];
+			vert_t vertex_to_add = G->csr_col_id[col_index_start + i];
 			if(is_vertex[vertex_to_add]) {
 				(*neighbours)[j++] = vertex_to_add;
 			}
 		}
 
 		neighbour_count = j;
-		*neighbours = (size_t *) realloc(*neighbours, neighbour_count * sizeof(size_t));
+		*neighbours = (vert_t *) realloc(*neighbours, neighbour_count * sizeof(vert_t));
 	}
 
 	return neighbour_count;
@@ -100,36 +100,36 @@ size_t get_neighbours(size_t vertex, const graph *G, const bool *is_vertex, size
  * as well as an array of vertices that will be considered as active vertices on the graph.
  * allocates and initializes the array of predecessors and returns the number of predecessors.
  */
-size_t get_predecessors(size_t vertex, const graph *G, const bool *is_vertex, size_t **predecessors) {
+ssize_t get_predecessors(vert_t vertex, const graph *G, const bool *is_vertex, vert_t **predecessors) {
 	// checks if the vertex is contained in the graph
 	if(!is_vertex[vertex]) {
 		return 0;
 	}
 
-	size_t row_index_start = G->csc_col_id[vertex];
-	size_t row_index_end = G->csc_col_id[vertex + 1];
+	edge_t row_index_start = G->csc_col_id[vertex];
+	edge_t row_index_end = G->csc_col_id[vertex + 1];
 	size_t predecessor_count = row_index_end - row_index_start;
 
 	// checks if there are even any predecessors
 	if(predecessor_count > 0) {
 		// allocates the required memory and handles for errors
-		*predecessors = (size_t *) malloc(predecessor_count * sizeof(size_t));
+		*predecessors = (vert_t *) malloc(predecessor_count * sizeof(vert_t));
 		if(*predecessors == NULL) {
 			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-			return 0;
+			return -1;
 		}
 
 		// then fills the array with the correct data
 		size_t j = 0;
 		for(size_t i = 0 ; i < predecessor_count ; ++i) {
-			size_t vertex_to_add = G->csc_row_id[row_index_start + i];
+			vert_t vertex_to_add = G->csc_row_id[row_index_start + i];
 			if(is_vertex[vertex_to_add]) {
 				(*predecessors)[j++] = vertex_to_add;
 			}
 		}
 
 		predecessor_count = j;
-		*predecessors = (size_t *) realloc(*predecessors, predecessor_count * sizeof(size_t));
+		*predecessors = (vert_t *) realloc(*predecessors, predecessor_count * sizeof(vert_t));
 	}
 
 	return predecessor_count;
@@ -146,36 +146,36 @@ size_t get_predecessors(size_t vertex, const graph *G, const bool *is_vertex, si
  *
  * saves the result in search_result returns the size of search_result
  */
-size_t bfs(
-		size_t start_vertex, const graph *G, 
-		size_t (*transfer)(size_t, const graph *, const bool *, size_t **), 
-		size_t search_property, const size_t *properties, const bool *is_vertex, 
-		size_t **search_result) {
+ssize_t bfs(
+		vert_t start_vertex, const graph *G, 
+		ssize_t (*transfer)(vert_t, const graph *, const bool *, vert_t **), 
+		vert_t search_property, const vert_t *properties, const bool *is_vertex, 
+		vert_t **search_result) {
 
-	if(properties[start_vertex] != search_property) return 0;
+	if(!is_vertex[start_vertex] || properties[start_vertex] != search_property) return 0;
 
 	// initialize visited array. this will contain all vertices visited
-	size_t *visited = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	bool *visited = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(visited == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
-		return 0;
+		return -1;
 	}
 
-	for(size_t i = 0 ; i < G->n_verts ; ++i) visited[i] = 0;
-	visited[start_vertex] = 1;
+	for(vert_t i = 0 ; i < G->n_verts ; ++i) visited[i] = false;
+	visited[start_vertex] = true;
 
 	// the vertex queue will contain all the vertices that have to be explored
 	// it will contain at most n_active_verts. head and tail index the head and
 	// tail position of the queue
-	size_t *vertex_queue = (size_t *) malloc(G->n_verts * sizeof(size_t));
+	vert_t *vertex_queue = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 	if(vertex_queue == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
 
 		free(visited);
-		return 0;
+		return -1;
 	}
-	size_t head = 0;
-	size_t tail = 0;
+	vert_t head = 0;
+	vert_t tail = 0;
 
 	// enqueue start_vertex
 	vertex_queue[tail++] = start_vertex;
@@ -183,22 +183,24 @@ size_t bfs(
 	// while the queue is not empty
 	while(tail > head) {
 		// dequeue v
-		size_t v = vertex_queue[head++];
+		vert_t v = vertex_queue[head++];
 
 		// get all the vertices that are reachable from v through transfer
-		size_t *front;
-		size_t front_size = 0;
-		front_size = (*transfer)(v, G, is_vertex, &front);
-
-		if(front_size > 0) {
+		vert_t *front;
+		ssize_t front_size = (*transfer)(v, G, is_vertex, &front);
+		if(front_size == -1) {
+			free(visited);
+			free(vertex_queue);
+			return -1;
+		} else if(front_size > 0) {
 			// for each w reachable from v
 			for(size_t i = 0 ; i < front_size ; ++i) {
-				size_t w = front[i];
+				vert_t w = front[i];
 				
 				// if w not visited and w has search_property
 				if (!visited[w] && properties[w] == search_property) {
 					// mark w as visited
-					visited[w] = 1;
+					visited[w] = true;
 					
 					// enqueue w
 					vertex_queue[tail++] = w;
@@ -213,25 +215,25 @@ size_t bfs(
 
 	size_t n_visited = tail;
 
-	vertex_queue = (size_t *) realloc(vertex_queue, n_visited * sizeof(size_t));
+	vertex_queue = (vert_t *) realloc(vertex_queue, n_visited * sizeof(vert_t));
 	*search_result = vertex_queue;
 
 	return n_visited;
 }
 
 // Performs BFS on graph G with transfer=get_neighbours
-size_t forward_bfs(
-		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const bool *is_vertex,
-		size_t **search_result) {
+ssize_t forward_bfs(
+		vert_t start_vertex, const graph *G, 
+		vert_t search_property, const vert_t *properties, const bool *is_vertex,
+		vert_t **search_result) {
 	return bfs(start_vertex, G, get_neighbours, search_property, properties, is_vertex, search_result);
 }
 
 // Performs BFS on graph G with transfer=get_predecessors
-size_t backward_bfs(
-		size_t start_vertex, const graph *G, 
-		size_t search_property, const size_t *properties, const bool *is_vertex,
-		size_t **search_result) {
+ssize_t backward_bfs(
+		vert_t start_vertex, const graph *G, 
+		vert_t search_property, const vert_t *properties, const bool *is_vertex,
+		vert_t **search_result) {
 	return bfs(start_vertex, G, get_predecessors, search_property, properties, is_vertex, search_result);
 }
 
@@ -241,32 +243,32 @@ size_t backward_bfs(
  * this is the case if v has no neighbours or no predecessors
  * or if its only neighbour/predecessor is itself
  */
-int is_trivial_scc(size_t v, const graph *G, const bool *is_vertex) {
-	size_t *N;
-	size_t n_N = get_neighbours(v, G, is_vertex, &N);
+int is_trivial_scc(vert_t v, const graph *G, const bool *is_vertex) {
+	vert_t *N;
+	ssize_t n_N = get_neighbours(v, G, is_vertex, &N);
 
-	size_t *P;
-	size_t n_P = get_predecessors(v, G, is_vertex, &P);
-
-	if(n_N == 0) {
-		if(n_P > 0) free(P);
-		return 1;
-	}
-
-	if(n_P == 0) {
-		if(n_N > 0) free(N);
-		return 1;
-	}
-
-	if((n_N == 1 && N[0] == v) || (n_P == 1 && P[0] == v)) {
+	if(n_N == -1) return -1;
+	else if(n_N == 0) return 1;
+	else if(n_N == 1 && N[0] == v) {
 		free(N);
-		free(P);
 		return 1;
 	}
 
 	free(N);
+
+	vert_t *P;
+	ssize_t n_P = get_predecessors(v, G, is_vertex, &P);
+
+	if(n_P == -1) return -1;
+	else if(n_P == 0) return 1;
+	else if(n_P == 1 && P[0] == v) {
+		free(P);
+		return 1;
+	}
+
 	free(P);
-	return 0;
+
+	return false;
 }
 
 
@@ -283,11 +285,11 @@ int is_trivial_scc(size_t v, const graph *G, const bool *is_vertex) {
  * 			0 if row_a = row_b and col_a = col_b
  */
 static int comp_row(const void *a, const void *b) {
-	size_t row_a = (*(size_t**)a)[0];
-	size_t row_b = (*(size_t**)b)[0];
+	vert_t row_a = (*((vert_t **)a))[0];
+	vert_t row_b = (*((vert_t **)b))[0];
 
-	size_t col_a = (*(size_t**)a)[1];
-	size_t col_b = (*(size_t**)b)[1];
+	vert_t col_a = (*((vert_t **)a))[1];
+	vert_t col_b = (*((vert_t **)b))[1];
 
 	if(row_a < row_b) return -1;
 	else if(row_a > row_b) return 1;
@@ -310,11 +312,11 @@ static int comp_row(const void *a, const void *b) {
  * 			0 if col_a = col_b and row_a = row_b
  */
 static int comp_col(const void *a, const void *b) {
-	size_t row_a = (*(size_t**)a)[0];
-	size_t row_b = (*(size_t**)b)[0];
+	vert_t row_a = (*((vert_t **)a))[0];
+	vert_t row_b = (*((vert_t **)b))[0];
 
-	size_t col_a = (*(size_t**)a)[1];
-	size_t col_b = (*(size_t**)b)[1];
+	vert_t col_a = (*((vert_t **)a))[1];
+	vert_t col_b = (*((vert_t **)b))[1];
 	
 	if(col_a < col_b) return -1;
 	else if(col_a > col_b) return 1;
@@ -422,32 +424,30 @@ int import_graph(char *mtx_fname, graph *G) {
 
 	// indices will store the pairs of row, column indices of nonzero elements
 	// in the .mtx file, later to be stored in the appropriate structs
-	size_t** indices;
+	vert_t **indices;
 
 	// there are n_nz such pairs of indices
-	indices = (size_t **) malloc(n_nz * sizeof(size_t *));
-	for(size_t i = 0 ; i < n_nz ; ++i) {
-		indices[i] = (size_t *) malloc(2 * sizeof(size_t));
+	indices = (vert_t **) malloc(n_nz * sizeof(vert_t *));
+	for(edge_t i = 0 ; i < n_nz ; ++i) {
+		indices[i] = (vert_t *) malloc(2 * sizeof(vert_t));
 
-		size_t row, col;
+		vert_t row, col;
 
-		size_t fscanf_match_count = 0;
+		int fscanf_match_count = 0;
 		// get the indices from the file, depending on the type of Matrix in the file,
 		// discarding the value of the matrix if needed.
 		if(mm_is_pattern(mtx_type)) {
-			fscanf_match_count = fscanf(mtx_file, "%zu %zu\n", &row, &col);
+			fscanf_match_count = fscanf(mtx_file, "%u %u\n", &row, &col);
 		} else if(mm_is_integer(mtx_type)) {
 			int val;
-			fscanf_match_count = fscanf(mtx_file, "%zu %zu %d\n", &row, &col, &val);
+			fscanf_match_count = fscanf(mtx_file, "%u %u %d\n", &row, &col, &val);
 		} else if(mm_is_real(mtx_type)) {
 			double val;
-			fscanf_match_count = fscanf(mtx_file, "%zu %zu %lf\n", &row, &col, &val);
+			fscanf_match_count = fscanf(mtx_file, "%u %u %lf\n", &row, &col, &val);
 		} else {
 			fprintf(stderr, "MatrixMarket file is of unsupported format: %s\n", mtx_fname);
 
-			for(size_t j = 0 ; j <= i ; ++j) {
-				free(indices[j]);
-			}
+			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
 			free(indices);
 
 			fclose(mtx_file);
@@ -464,9 +464,7 @@ int import_graph(char *mtx_fname, graph *G) {
 				fprintf(stderr, "Error reading from %s:\nfscanf matching failure\n", mtx_fname);
 			}
 			
-			for(size_t j = 0 ; j <= i ; ++j) {
-				free(indices[j]);
-			}
+			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
 			free(indices);
 
 			fclose(mtx_file);
@@ -474,9 +472,7 @@ int import_graph(char *mtx_fname, graph *G) {
 		} else if(fscanf_match_count == 0) {
 			fprintf(stderr, "Error reading from %s:\nfscanf early matching failure\n", mtx_fname);
 
-			for(size_t j = 0 ; j <= i ; ++j) {
-				free(indices[j]);
-			}
+			for(edge_t j = 0 ; j <= i ; ++j) free(indices[j]);
 			free(indices);
 
 			fclose(mtx_file);
@@ -501,9 +497,7 @@ int import_graph(char *mtx_fname, graph *G) {
 	if(mtx_init_err_code) {
 		fprintf(stderr, "Error initializing CSC matrix: %s\n%s\n", mtx_fname, strerror(mtx_init_err_code));
 
-		for(size_t j = 0 ; j < n_nz ; ++j) {
-			free(indices[j]);
-		}
+		for(edge_t j = 0 ; j < n_nz ; ++j) free(indices[j]);
 		free(indices);
 
 		return -1;
@@ -517,20 +511,20 @@ int import_graph(char *mtx_fname, graph *G) {
 	 */
 
 	// sort the indices based on the column index in order to create the CSC format
-	qsort(indices, n_nz, sizeof(size_t *), comp_col);
+	qsort(indices, n_nz, sizeof(vert_t *), comp_col);
 
 	// csc_col_id[col + 1] will initialy hold the number of nz elements in col, 
 	// then we perform a cumulative sum which will be in the form we need.
 	
 	// initialize csc_col_id to 0. 
-	for(size_t i = 0 ; i <= n_verts ; ++i) {
+	for(vert_t i = 0 ; i <= n_verts ; ++i) {
 		G->csc_col_id[i] = 0;
 	}
 
 	// then we loop over the COO array
-	for(size_t i = 0 ; i < n_edges ; ++i) {
-		size_t row = indices[i][0];
-		size_t col = indices[i][1];
+	for(edge_t i = 0 ; i < n_edges ; ++i) {
+		vert_t row = indices[i][0];
+		vert_t col = indices[i][1];
 
 		// store the row in row_id as is
 		G->csc_row_id[i] = row;
@@ -540,26 +534,26 @@ int import_graph(char *mtx_fname, graph *G) {
 	}
 
 	// then perform the cumulative sum
-	for(size_t i = 0 ; i < n_verts ; ++i) {
+	for(vert_t i = 0 ; i < n_verts ; ++i) {
 		G->csc_col_id[i + 1] += G->csc_col_id[i];
 	}
 
 
 	// then sort the indices based on row index, for the CSR format
-	qsort(indices, n_nz, sizeof(size_t *), comp_row);
+	qsort(indices, n_nz, sizeof(vert_t *), comp_row);
 
 	// then initialize the CSR struct in the same way as above, 
 	// with col_id and row_id switched.
 	
 	// initialize csc_row_id to 0.
-	for(size_t i = 0 ; i <= n_verts ; ++i) {
+	for(vert_t i = 0 ; i <= n_verts ; ++i) {
 		G->csr_row_id[i] = 0;
 	}
 
 	// then we loop over the COO array
-	for(size_t i = 0 ; i < n_edges ; ++i) {
-		size_t row = indices[i][0];
-		size_t col = indices[i][1];
+	for(edge_t i = 0 ; i < n_edges ; ++i) {
+		vert_t row = indices[i][0];
+		vert_t col = indices[i][1];
 
 		// store the col in col_id as is
 		G->csr_col_id[i] = col;
@@ -569,14 +563,12 @@ int import_graph(char *mtx_fname, graph *G) {
 	}
 
 	// then perform the cumulative sum
-	for(size_t i = 0 ; i < n_verts ; ++i) {
+	for(vert_t i = 0 ; i < n_verts ; ++i) {
 		G->csr_row_id[i + 1] += G->csr_row_id[i];
 	}
 
 	// finally free the memory in the indices array, since it is no longer needed.
-	for(size_t i = 0 ; i < n_nz ; ++i) {
-		free(indices[i]);
-	}
+	for(edge_t j = 0 ; j < n_nz ; ++j) free(indices[j]);
 	free(indices);
 
 	return 0;

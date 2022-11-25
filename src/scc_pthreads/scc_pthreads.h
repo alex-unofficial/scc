@@ -6,6 +6,6 @@
 #include <graph.h>
 
 // Implements the graph coloring algorithm to find the SCCs of G
-size_t p_scc_coloring(const graph *G, size_t **vertex_scc_id);
+ssize_t p_scc_coloring(const graph *G, vert_t **vertex_scc_id);
 
 #endif
