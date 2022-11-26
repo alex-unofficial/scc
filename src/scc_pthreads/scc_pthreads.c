@@ -9,7 +9,10 @@
 
 #include <string.h>
 
+
+#ifndef NUMTHREADS
 #define NUMTHREADS 4
+#endif
 
 
 /* This function is meant to be executed inside a thread.

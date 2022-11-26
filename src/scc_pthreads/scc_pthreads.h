@@ -1,5 +1,5 @@
-#ifndef SCC_PTHREADS
-#define SCC_PTHREADS
+#ifndef SCC_PTHREADS_H
+#define SCC_PTHREADS_H
 
 #include <stdlib.h>
 

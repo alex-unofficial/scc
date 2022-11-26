@@ -1,6 +1,6 @@
 # The C Compiler and Compiler flags
-CC=clang
-CFLAGS=-g
+CC=gcc
+CFLAGS=-fopenmp -g
 LDFLAGS=-lpthread
 
 # The name of the executable
@@ -8,11 +8,11 @@ PROGRAM=scc
 
 # The directory to put object files in and the object files themselves
 OBJDIR=obj
-OBJ=main.o graph.o scc.o scc_pthreads.o mmio.o
+OBJ=main.o graph.o scc.o scc_pthreads.o scc_openmp.o mmio.o
 OBJFILES=$(addprefix $(OBJDIR)/, $(OBJ))
 
 # Directories with header files
-SRCDIR=src/graph:src/scc:src/scc_pthreads
+SRCDIR=src/graph:src/scc:src/scc_pthreads:src/scc_openmp
 EXTERNALDIR=external/matrix-market
 
 # The path make searches for dependency files
