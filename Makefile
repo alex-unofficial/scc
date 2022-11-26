@@ -1,10 +1,10 @@
 # The C Compiler and Compiler flags
-CC=gcc
+CC=clang
 CFLAGS=-g
 LDFLAGS=-lpthread
 
 # The name of the executable
-PROGRAM=exec
+PROGRAM=scc
 
 # The directory to put object files in and the object files themselves
 OBJDIR=obj
@@ -26,7 +26,7 @@ all: $(PROGRAM)
 
 # Linking the object files into the final executable
 $(PROGRAM): $(OBJFILES)
-	$(CC) $(CFLAGS) $(OBJFILES) -o $(PROGRAM) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $(PROGRAM) $(OBJFILES) $(LDFLAGS)
 
 # Compiling the C files into object files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)

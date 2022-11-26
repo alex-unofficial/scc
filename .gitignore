@@ -1,11 +1,11 @@
 # gitignore file
 
 # the executable and object files
-exec
+scc
 obj/*
 
 # the example matrices
-example-matrices/*
+data/*
 
 # valgrind files
 vgcore.*

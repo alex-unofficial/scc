@@ -90,6 +90,8 @@ struct init_unique_colors_args {
 			pthread_mutex_unlock(iucargs->n_colors_lock);
 		}
 	}
+
+	return NULL;
 }
 
 
@@ -247,6 +249,8 @@ struct get_sccs_args {
 			free(scc_c);
 		}
 	}
+
+	return NULL;
 }
 
 
