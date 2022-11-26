@@ -26,7 +26,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 	
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 		return -1;
 	}
 	
@@ -37,7 +37,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 	// allocate the memory required for the scc_id array
 	*scc_id = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 	if(*scc_id == NULL) {
-		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 
 		free(is_vertex);
 		return -1;
@@ -87,7 +87,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		// initialize the colors array as colors(v) = v for each v in G
 		vert_t *colors = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 		if(colors == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 
 			free(is_vertex);
 			free(*scc_id);
@@ -138,7 +138,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		// there may be up to n_verts unique colors (one for each vertex)
 		vert_t *unique_colors = (vert_t *) malloc(G->n_verts * sizeof(vert_t));
 		if(unique_colors == NULL) {
-			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(errno));
+			fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
 
 			free(is_vertex);
 			free(*scc_id);
