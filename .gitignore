@@ -5,7 +5,7 @@ scc
 obj/*
 
 # but include the scc directory
-!src/scc/*
+!src/scc
 
 # the example matrices
 data/*

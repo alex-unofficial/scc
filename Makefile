@@ -8,25 +8,23 @@ PROGRAM=scc
 
 # The directory to put object files in and the object files themselves
 OBJDIR=obj
-OBJ=main.o graph.o scc.o scc_pthreads.o scc_openmp.o mmio.o
-OBJFILES=$(addprefix $(OBJDIR)/, $(OBJ))
-
-# Directories with header files
-SRCDIR=src/graph:src/scc:src/scc_pthreads:src/scc_openmp
-EXTERNALDIR=external/matrix-market
+SRCOBJ=scc.o graph.o scc_serial.o scc_pthreads.o scc_openmp.o
+EXTOBJ=mmio.o
+OBJFILES=$(addprefix $(OBJDIR)/,$(SRCOBJ) $(EXTOBJ))
 
 # The path make searches for dependency files
-VPATH=$(SRCDIR):$(EXTERNALDIR)
+SPACE= 
+VPATH=$(subst $(SPACE),:,$(patsubst %.o,src/%,$(SRCOBJ)) $(patsubst %.o,external/%,$(EXTOBJ)))
 
 # Adding VPATH to the compiler path
-override CFLAGS += $(patsubst %,-I%,$(subst :, ,$(VPATH)))
+override CFLAGS += $(patsubst %,-I%,$(subst :,$(SPACE),$(VPATH)))
 
 # default all target
 all: $(PROGRAM)
 
 # Linking the object files into the final executable
 $(PROGRAM): $(OBJFILES)
-	$(CC) $(CFLAGS) -o $(PROGRAM) $(OBJFILES) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $(PROGRAM) $^ $(LDFLAGS)
 
 # Compiling the C files into object files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
@@ -36,12 +34,8 @@ $(OBJDIR)/%.o: %.c | $(OBJDIR)
 $(OBJDIR):
 	mkdir $(OBJDIR)
 
-# Directory management targets, clean removes everything but the executable,
-# purge removes the executable
-.PHONY: purge clean
-purge: clean
-	rm -f $(PROGRAM)
-
-clean:
-	rm -rf $(OBJDIR)
+# Remove all the produced files from the directory
+.PHONY: clean
+clean: 
+	rm -rf $(PROGRAM) $(OBJDIR)
 
