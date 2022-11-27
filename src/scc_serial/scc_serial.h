@@ -1,5 +1,5 @@
-#ifndef SCC_H
-#define SCC_H
+#ifndef SCC_SERIAL_H
+#define SCC_SERIAL_H
 
 #include <graph.h>
 
