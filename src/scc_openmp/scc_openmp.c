@@ -30,6 +30,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		return -1;
 	}
 	
+	// initializing is_vertex array in parallel
 	#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
 	for(vert_t v = 0 ; v < G->n_verts ; ++v) is_vertex[v] = true;
 	size_t n_active_verts = G->n_verts;
@@ -55,7 +56,9 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 
 		size_t verts_removed = 0;
 
-		// loop over all vertices
+		// loop over all vertices in parallel
+		// verts removed is private to each thread and when all threads return
+		// the value will be set as the sum of the values of all the threads.
 		#pragma omp parallel for default (shared) num_threads (NUMTHREADS) \
 			reduction (+:verts_removed) 
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
@@ -77,6 +80,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 			}
 		}
 
+		// update n_scc and n_active_verts accordingly
 		n_scc += verts_removed;
 		n_active_verts -= verts_removed;
 	}
@@ -94,6 +98,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 			return -1;
 		}
 
+		// initialize colors in parallel
 		#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) colors[v] = v;
 
@@ -104,7 +109,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		while(changed_color) {
 			changed_color = false;
 
-			// we loop over all the vertives v in the graph (checking if the v is active)
+			// we loop over all the vertives v in the graph in parallel
 			#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
 			for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 				if(is_vertex[v]) {
@@ -150,10 +155,12 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 
 		// from the way colors was initialized, the unique colors are 
 		// those of the vertices v such that colors[v] = v, then c := v.
-		// we append c to the unique_colors array
+		// we append c to the unique_colors array. we can do this in parallel
 		#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 			if(is_vertex[v] && colors[v] == v) {
+				// but we must consider the operation below critical (mutex),
+				// meaning only one thread may perform it at a time
 				#pragma omp critical
 					unique_colors[n_colors++] = v;
 			}
@@ -165,8 +172,9 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		size_t sccs_found = 0;
 		size_t verts_removed = 0;
 
-		// then loop over all the unique colors c
-
+		// then loop over all the unique colors c in parallel
+		// performing once again a sum reduction on sccs_found
+		// and verts_removed on each thread.
 		#pragma omp parallel for default (shared) num_threads(NUMTHREADS) \
 			reduction (+:sccs_found, verts_removed)
 		for(size_t i = 0 ; i < n_colors ; ++i) {
@@ -193,8 +201,9 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 			}
 		}
 
-		n_active_verts -= verts_removed;
+		// update n_scc and n_active_verts accordingly
 		n_scc += sccs_found;
+		n_active_verts -= verts_removed;
 
 		free(unique_colors);
 		free(colors);
