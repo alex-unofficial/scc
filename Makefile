@@ -1,6 +1,6 @@
 # The C Compiler and Compiler flags
-CC=gcc
-CFLAGS=-fopenmp -g
+CC=clang
+CFLAGS=-g
 LDFLAGS=-lpthread
 
 # The name of the executable
