@@ -32,7 +32,7 @@ OBJDIR=build
 PROGRAM=$(BINDIR)/$(PROGNAME)
 
 # the object files
-SRCOBJ=scc.o graph.o scc_serial.o scc_pthreads.o
+SRCOBJ=scc.o graph.o scc_serial.o scc_openmp.o
 EXTOBJ=mmio.o
 OBJFILES=$(addprefix $(OBJDIR)/,$(SRCOBJ) $(EXTOBJ))
 
