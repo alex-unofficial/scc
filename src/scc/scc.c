@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <sys/time.h>
+#include <time.h>
 
 #include <errno.h>
 #include <string.h>
@@ -30,14 +30,14 @@ int main(int argc, char **argv) {
 
 	printf("\n");
 
-	struct timeval t1, t2;
+	struct timespec t1, t2;
 	double elapsedtime;
 
 	printf("=== serial SCC algorithm ===\n");
 	vert_t *scc_id;
-	gettimeofday(&t1, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t1);
 	ssize_t n_scc = scc_coloring(G, &scc_id);
-	gettimeofday(&t2, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t2);
 
 	if(n_scc == -1) {
 		free_graph(G);
@@ -47,16 +47,16 @@ int main(int argc, char **argv) {
 	printf("number of SCCs = %zd\n", n_scc);
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
-	elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
+	elapsedtime += (t2.tv_nsec - t1.tv_nsec) / 10000000000.0;
 	printf("total time: %0.4f sec\n", elapsedtime);
 
 	printf("\n");
 
 	printf("=== pthreads SCC algorithm ===\n");
 	vert_t *p_scc_id;
-	gettimeofday(&t1, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t1);
 	ssize_t p_n_scc = p_scc_coloring(G, &p_scc_id);
-	gettimeofday(&t2, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t2);
 
 	if(p_n_scc == -1) {
 		free(scc_id);
@@ -67,16 +67,16 @@ int main(int argc, char **argv) {
 	printf("number of SCCs = %zd\n", p_n_scc);
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
-	elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
+	elapsedtime += (t2.tv_nsec - t1.tv_nsec) / 1000000000.0;
 	printf("total time: %0.4f sec\n", elapsedtime);
 
 	printf("\n");
 
 	printf("=== openmp SCC algorithm ===\n");
 	vert_t *omp_scc_id;
-	gettimeofday(&t1, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t1);
 	ssize_t omp_n_scc = omp_scc_coloring(G, &omp_scc_id);
-	gettimeofday(&t2, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &t2);
 
 	if(omp_n_scc == -1) {
 		free(scc_id);
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 	printf("number of SCCs = %zd\n", omp_n_scc);
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
-	elapsedtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
+	elapsedtime += (t2.tv_nsec - t1.tv_nsec) / 1000000000.0;
 	printf("total time: %0.4f sec\n", elapsedtime);
 
 	printf("\n");
