@@ -1,6 +1,6 @@
 # The C Compiler and Compiler flags
 CC=clang
-CFLAGS=-g
+CFLAGS=-O3
 LDFLAGS=-lpthread
 
 # The name of the executable
