@@ -17,8 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # The C Compiler and Compiler flags
-CC=clang
-CFLAGS=-O3
+CC=gcc
+CFLAGS=-fopenmp -O3
 LDFLAGS=-lpthread
 
 # The name of the executable
