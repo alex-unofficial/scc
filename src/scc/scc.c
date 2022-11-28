@@ -31,7 +31,7 @@
 
 #include <graph.h>
 #include <scc_serial.h>
-#include <scc_pthreads.h>
+#include <scc_opencilk.h>
 
 #ifndef NUM_THREADS
 #define NUM_THREADS 4
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
 	if(run_parallel) {
 		printf("=== parallel SCC algorithm ===\n");
 		clock_gettime(CLOCK_MONOTONIC, &t1);
-		p_n_scc = p_scc_coloring(G, &p_scc_id, num_threads);
+		p_n_scc = cilk_scc_coloring(G, &p_scc_id, num_threads);
 		clock_gettime(CLOCK_MONOTONIC, &t2);
 
 		if(p_n_scc == -1) {
