@@ -1,8 +1,8 @@
 # gitignore file
 
 # the executable and object files
-scc
-obj/*
+bin/*
+build/*
 
 # but include the scc directory
 !src/scc
