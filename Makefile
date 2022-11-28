@@ -13,7 +13,7 @@ OBJDIR=build
 PROGRAM=$(BINDIR)/$(PROGNAME)
 
 # the object files
-SRCOBJ=scc.o graph.o scc_serial.o
+SRCOBJ=scc.o graph.o scc_serial.o scc_pthreads.o
 EXTOBJ=mmio.o
 OBJFILES=$(addprefix $(OBJDIR)/,$(SRCOBJ) $(EXTOBJ))
 
