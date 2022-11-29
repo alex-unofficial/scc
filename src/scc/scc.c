@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
 	elapsedtime += (t2.tv_nsec - t1.tv_nsec) / 10000000000.0;
-	printf("total time: %0.4f sec\n", elapsedtime);
+	printf("total time: %0.6f sec\n", elapsedtime);
 
 	printf("\n");
 
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 
 	elapsedtime = (t2.tv_sec - t1.tv_sec);
 	elapsedtime += (t2.tv_nsec - t1.tv_nsec) / 10000000000.0;
-	printf("total time: %0.4f sec\n", elapsedtime);
+	printf("total time: %0.6f sec\n", elapsedtime);
 
 	printf("\n");
 
