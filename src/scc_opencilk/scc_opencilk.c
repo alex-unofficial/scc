@@ -11,6 +11,10 @@
 #include <cilk/cilk.h>
 
 
+void sum_identity(void *view) { *(size_t *)view = 0; }
+void sum_reducer(void *left, void* right) { *(size_t *)left += *(size_t *)right; }
+
+
 /* Implements the graph coloring algorithm to find the SCCs of G
  *
  * takes as input the graph G and a double pointer where the result will 
@@ -48,8 +52,10 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 	while(removed_vertex) {
 		removed_vertex = false;
 
+		size_t cilk_reducer(sum_identity, sum_reducer) verts_removed = 0;
+
 		// loop over all vertices
-		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
+		cilk_for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 			if(is_vertex[v]) {
 				int is_trivial = is_trivial_scc(v, G, is_vertex);
 
@@ -58,16 +64,18 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 					// if it is, set scc_id for the vertex to be itself
 					// and increase the number of sccs
 					(*scc_id)[v] = v;
-					n_scc += 1;
 
 					// finally remove the vertex from the graph
 					is_vertex[v] = false;
-					n_active_verts -= 1;
-
 					removed_vertex = true;
+
+					verts_removed++;
 				}
 			}
 		}
+
+		n_active_verts -= verts_removed;
+		n_scc += verts_removed;
 	}
 
 	// the core loop of the algorithm
@@ -145,22 +153,18 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 		// free the extra memory allocated to unique_colors
 		unique_colors = (vert_t *) realloc(unique_colors, n_colors * sizeof(vert_t));
 
+		size_t cilk_reducer(sum_identity, sum_reducer) verts_removed = 0;
+		size_t cilk_reducer(sum_identity, sum_reducer) sccs_found_thd = 0;
+
 		// then loop over all the unique colors c
-		for(size_t i = 0 ; i < n_colors ; ++i) {
+		cilk_for(size_t i = 0 ; i < n_colors ; ++i) {
 			vert_t c = unique_colors[i];
 
 			// perform a backward bfs on the subgraph of G where colors[v] = c
 			// these create a new scc
 			vert_t *scc_c;
 			ssize_t n_scc_c = backward_bfs(c, G, c, colors, is_vertex, &scc_c);
-			if(n_scc_c == -1) {
-				free(is_vertex);
-				free(*scc_id);
-				free(colors);
-				free(unique_colors);
-				return -1;
-
-			} if(n_scc_c > 0) {
+			if(n_scc_c > 0) {
 				// for each vertex in the new scc set scc_id = c and increase n_scc
 				for(size_t j = 0 ; j < n_scc_c ; ++j) {
 					vert_t v = scc_c[j];
@@ -169,12 +173,16 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 					// finally remove the vertices from the graph
 					is_vertex[v] = false;
 				}
-				n_active_verts -= n_scc_c;
-				n_scc += 1;
+
+				verts_removed += n_scc_c;
+				sccs_found_thd += 1;
 
 				free(scc_c);
 			}
 		}
+
+		n_active_verts -= verts_removed;
+		n_scc += sccs_found_thd;
 
 		free(unique_colors);
 		free(colors);
