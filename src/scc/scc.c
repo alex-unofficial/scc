@@ -24,6 +24,9 @@ int main(int argc, char **argv) {
 	graph *G = import_graph(mtx_fname);
 	if(G == NULL) return -1;
 
+	printf("number of vertices = %zu\n", G->n_verts);
+	printf("number of edges = %zu\n", G->n_edges);
+
 	printf("\n");
 
 	struct timespec t1, t2;
