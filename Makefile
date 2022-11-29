@@ -10,6 +10,7 @@ PROGNAME=scc
 BINDIR=bin
 OBJDIR=build
 
+# the path to the executable
 PROGRAM=$(BINDIR)/$(PROGNAME)
 
 # the object files
@@ -24,12 +25,15 @@ VPATH=$(subst $(SPACE),:,$(patsubst %.o,src/%,$(SRCOBJ)) $(patsubst %.o,external
 # Adding VPATH to the compiler path
 override CFLAGS += $(patsubst %,-I%,$(subst :,$(SPACE),$(VPATH)))
 
-# default all target
-all: $(PROGRAM)
+# default target
+default: $(PROGRAM)
+
+# all target
+all: clean $(PROGRAM)
 
 # Linking the object files into the final executable
 $(PROGRAM): $(OBJFILES) | $(BINDIR)
-	$(CC) $(CFLAGS) -o $(PROGRAM) $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $(PROGRAM) $(OBJFILES) $(LDFLAGS)
 
 # Compiling the C files into object files
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
