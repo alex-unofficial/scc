@@ -72,17 +72,47 @@ int main(int argc, char **argv) {
 
 	printf("=== error checking ===\n");
 	int num_errors = 0;
+
 	if(n_scc != p_n_scc) {
 		printf(
-			"%d: non matching number of SCCs -- %zd (serial) != %zd (parallel)\n", 
+			"%3d: non matching number of SCCs -- %zd (serial) != %zd (parallel)\n", 
 			num_errors++, n_scc, p_n_scc
 		);
 	}
+
+	if(n_scc > G->n_verts) {
+		printf(
+			"%3d: invalid number of SCCs (serial) -- n_scc = %zd > n_verts = %zd\n", 
+			num_errors++, n_scc, G->n_verts
+		);
+	}
+
+	if(p_n_scc > G->n_verts) {
+		printf(
+			"%3d: invalid number of SCCs (parallel) -- n_scc = %zd > n_verts = %zd\n", 
+			num_errors++, p_n_scc, G->n_verts
+		);
+	}
+
 	for(size_t i = 0 ; i < G->n_verts ; i++) {
 		if(scc_id[i] != p_scc_id[i]) {
 			printf(
-				"%d: non matching scc id -- %u (serial) != %u (parallel)\n",
-				num_errors++, scc_id[i], p_scc_id[i]
+				"%3d: non matching scc id at index %zu -- %u (serial) != %u (parallel)\n",
+				num_errors++, i, scc_id[i], p_scc_id[i]
+			);
+		}
+
+		if(scc_id[i] > G->n_verts) {
+			printf(
+				"%3d: invalid scc id (serial) -- scc_id[%zu] = %u < n_verts = %zu\n",
+				num_errors++, i, scc_id[i], G->n_verts
+			);
+		}
+
+		if(p_scc_id[i] > G->n_verts) {
+			printf(
+				"%3d: invalid scc id (parallel) -- scc_id[%zu] = %u < n_verts = %zu\n",
+				num_errors++, i, p_scc_id[i], G->n_verts
 			);
 		}
 	}
