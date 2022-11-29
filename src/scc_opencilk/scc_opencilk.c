@@ -14,6 +14,8 @@
 void sum_identity(void *view) { *(size_t *)view = 0; }
 void sum_reducer(void *left, void* right) { *(size_t *)left += *(size_t *)right; }
 
+void or_identity(void *view) { *(bool *)view = false; }
+void or_reducer(void *left, void *right) { *(bool *)left = *(bool *)left || *(bool *)right; }
 
 /* Implements the graph coloring algorithm to find the SCCs of G
  *
@@ -95,7 +97,7 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 		// this loop will run as long as at least one vertex changed colors in
 		// the last iteration since a vertex changing color might end up changing
 		// the color of its neighbours in the next iteration.
-		bool changed_color = true;
+		bool cilk_reducer(or_identity, or_reducer) changed_color = true;
 		while(changed_color) {
 			changed_color = false;
 
