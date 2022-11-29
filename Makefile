@@ -18,7 +18,7 @@
 
 # The C Compiler and Compiler flags
 CC=clang
-CFLAGS=-O3
+CFLAGS=-fopencilk -O3
 LDFLAGS=-lpthread
 
 # The name of the executable
