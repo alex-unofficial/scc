@@ -11,9 +11,11 @@
 #include <cilk/cilk.h>
 
 
+// implements a cilk sum reducer
 void sum_identity(void *view) { *(size_t *)view = 0; }
 void sum_reducer(void *left, void* right) { *(size_t *)left += *(size_t *)right; }
 
+// implements a cilk or reducer
 void or_identity(void *view) { *(bool *)view = false; }
 void or_reducer(void *left, void *right) { *(bool *)left = *(bool *)left || *(bool *)right; }
 
