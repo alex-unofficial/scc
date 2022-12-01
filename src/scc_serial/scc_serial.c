@@ -40,12 +40,9 @@ ssize_t scc_coloring(const graph *G, vert_t **scc_id) {
 	size_t n_scc = 0;
 	
 	// remove trivial sccs 
-	// the loop will run as long as there are new vertices removed 
-	// since removing a vertex may lead to another vertex becoming trivial
-	bool removed_vertex = true;
-	while(removed_vertex) {
-		removed_vertex = false;
-
+	// the loop will run just twice since after that
+	// you get diminishing returns for each iteration
+	for(uint8_t i = 0 ; i < 2 ; ++i) {
 		// loop over all vertices
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 			if(is_vertex[v]) {
@@ -67,8 +64,6 @@ ssize_t scc_coloring(const graph *G, vert_t **scc_id) {
 					// finally remove the vertex from the graph
 					is_vertex[v] = false;
 					n_active_verts -= 1;
-
-					removed_vertex = true;
 				}
 			}
 		}

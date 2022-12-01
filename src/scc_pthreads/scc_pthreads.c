@@ -110,8 +110,6 @@ struct trimming_args {
 	const graph *G;
 	bool *is_vertex;
 
-	bool *removed_vertex;
-
 	vert_t **scc_id;
 	size_t n_scc_thd;
 
@@ -134,7 +132,6 @@ struct trimming_args {
 
 			// finally remove the vertex from the graph
 			trargs->is_vertex[v] = false;
-			*(trargs->removed_vertex) = true;
 		}
 	}
 
@@ -306,12 +303,9 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 	size_t n_scc = 0;
 	
 	// remove trivial sccs 
-	// the loop will run as long as there are new vertices removed 
-	// since removing a vertex may lead to another vertex becoming trivial
-	bool removed_vertex = true;
-	while(removed_vertex) {
-		removed_vertex = false;
-
+	// the loop will run just twice since after that
+	// you get diminishing returns
+	for(uint8_t i = 0 ; i < 2 ; ++i) {
 		// perform one trimming iteration in parallel
 		struct trimming_args trargs[NUMTHREADS];
 		for(int i = 0 ; i < NUMTHREADS ; ++i) {
@@ -321,7 +315,6 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 			trargs[i].G = G;
 			trargs[i].is_vertex = is_vertex;
 
-			trargs[i].removed_vertex = &removed_vertex;
 			trargs[i].scc_id = scc_id;
 			
 			pthread_create(&threads[i], NULL, p_trimming, &trargs[i]);

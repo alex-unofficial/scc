@@ -48,12 +48,9 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 	size_t n_scc = 0;
 	
 	// remove trivial sccs 
-	// the loop will run as long as there are new vertices removed 
-	// since removing a vertex may lead to another vertex becoming trivial
-	bool removed_vertex = true;
-	while(removed_vertex) {
-		removed_vertex = false;
-
+	// the loop will run just twice since after that
+	// you get diminishing returns
+	for(uint8_t i = 0 ; i < 2 ; ++i) {
 		size_t cilk_reducer(sum_identity, sum_reducer) verts_removed = 0;
 
 		// loop over all vertices
@@ -69,8 +66,6 @@ ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
 
 					// finally remove the vertex from the graph
 					is_vertex[v] = false;
-					removed_vertex = true;
-
 					verts_removed++;
 				}
 			}
