@@ -11,7 +11,7 @@
 
 
 #ifndef NUMTHREADS
-#define NUMTHREADS 4
+#define NUMTHREADS 8
 #endif
 
 
