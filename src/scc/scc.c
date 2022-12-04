@@ -33,16 +33,40 @@
 #include <scc_serial.h>
 #include <scc_pthreads.h>
 
-int main(int argc, char **argv) {
+const char help_string[] = "scc - find number of sccs in a graph\n\
+Usage:\tscc [-sp] [--] mtx_file.mtx\n\
+\n\
+Description:\n\
+  scc will find the number of SCCs in a given graph.\n\
+  \n\
+  mtx_file.mtx is a file in the MatrixMarket format\n\
+  which contains the adjacency matrix of the graph.\n\
+  \n\
+  error checking is performed on the number of sccs and\n\
+  the scc id of each vertex to see if it is an invalid value\n\
+  (i.e. there are more sccs than vertices).\n\
+  when using both the serial and parallel implememntations\n\
+  this also checks if the values are matching between\n\
+  implementations\n\
+\n\
+Options:\n\
+  -h:\tprint this help text and exit.\n\
+  -s:\trun the serial implementation of scc.\n\
+  -p:\trun the parallel implementation of scc.\n\
+  --:\tend of options. the argument following must be a filename\n\
+\n";
 
-	const char *program_name = argv[0];
+int main(int argc, char **argv) {
 
 	bool run_serial = false;
 	bool run_parallel = false;
 
 	int opt;
-	while((opt = getopt(argc, argv, "sp")) != -1) {
+	while((opt = getopt(argc, argv, "hsp")) != -1) {
 		switch(opt) {
+		case 'h':
+			printf(help_string);
+			return 0;
 		case 's':
 			run_serial = true;
 			break;
@@ -68,8 +92,8 @@ int main(int argc, char **argv) {
 
 	char* mtx_fname = NULL;
 	if(optind >= argc) {
-		fprintf(stderr, "Error reading input arguments: %s\nUsage:\t%s [-sp] mtx_file.mtx\n", 
-				strerror(EINVAL), program_name);
+		fprintf(stderr, "Error reading input arguments: %s\nUsage:\tscc [-sp] [--] mtx_file.mtx\n", 
+				strerror(EINVAL));
 		exit(EINVAL);
 	}
 	mtx_fname = argv[optind];
@@ -187,11 +211,8 @@ int main(int argc, char **argv) {
 	
 	printf("\n");
 
-	if(run_serial)
-		free(scc_id);
-
-	if(run_parallel)
-		free(p_scc_id);
+	if(run_serial) free(scc_id);
+	if(run_parallel) free(p_scc_id);
 
 	free_graph(G);
 
