@@ -29,11 +29,6 @@
 #include <string.h>
 
 
-#ifndef NUMTHREADS
-#define NUMTHREADS 8
-#endif
-
-
 /* This function is meant to be executed inside a thread.
  *
  * it initializes the is_vertex array between vertices start and end
@@ -281,13 +276,13 @@ struct get_sccs_args {
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
-ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
+ssize_t p_scc_coloring(const graph *G, vert_t **scc_id, int num_threads) {
 
-	// create NUMTHREADS threads
-	pthread_t threads[NUMTHREADS];
+	// create num_threads threads
+	pthread_t threads[num_threads];
 
 	// the block size refers to the number of vertices that each thread will be responsible for.
-	const size_t p_block_size = G->n_verts / NUMTHREADS;
+	size_t p_block_size = G->n_verts / num_threads;
 	
 	// allocate the memory required for the is_vertex array
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
@@ -297,14 +292,14 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 	}
 
 	// initialize the is_vertex array in parallel
-	struct init_vertex_args ivargs[NUMTHREADS];
-	for(int i = 0 ; i < NUMTHREADS ; ++i) {
+	struct init_vertex_args ivargs[num_threads];
+	for(int i = 0 ; i < num_threads ; ++i) {
 		ivargs[i].start = i * p_block_size;
-		ivargs[i].end = (i == NUMTHREADS - 1)? G->n_verts : (i + 1) * p_block_size;
+		ivargs[i].end = (i == num_threads - 1)? G->n_verts : (i + 1) * p_block_size;
 		ivargs[i].is_vertex = is_vertex;
 
 		pthread_create(&threads[i], NULL, p_init_is_vertex, &ivargs[i]);
-	} for(int i = 0 ; i < NUMTHREADS ; ++i) pthread_join(threads[i], NULL);
+	} for(int i = 0 ; i < num_threads ; ++i) pthread_join(threads[i], NULL);
 	
 	// initialize n_active_verts to n_verts
 	size_t n_active_verts = G->n_verts;
@@ -326,10 +321,10 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 	// you get diminishing returns
 	for(uint8_t i = 0 ; i < 2 ; ++i) {
 		// perform one trimming iteration in parallel
-		struct trimming_args trargs[NUMTHREADS];
-		for(int i = 0 ; i < NUMTHREADS ; ++i) {
+		struct trimming_args trargs[num_threads];
+		for(int i = 0 ; i < num_threads ; ++i) {
 			trargs[i].start = i * p_block_size;
-			trargs[i].end = (i == NUMTHREADS - 1)? G->n_verts : (i + 1) * p_block_size;
+			trargs[i].end = (i == num_threads - 1)? G->n_verts : (i + 1) * p_block_size;
 
 			trargs[i].G = G;
 			trargs[i].is_vertex = is_vertex;
@@ -337,7 +332,7 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 			trargs[i].scc_id = scc_id;
 			
 			pthread_create(&threads[i], NULL, p_trimming, &trargs[i]);
-		} for(int i = 0 ; i < NUMTHREADS ; ++i) {
+		} for(int i = 0 ; i < num_threads ; ++i) {
 			pthread_join(threads[i], NULL);
 
 			n_scc += trargs[i].n_scc_thd;
@@ -359,14 +354,14 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 		}
 
 		// initializing the colors array in parallel
-		struct init_colors_args icargs[NUMTHREADS];
-		for(int i = 0 ; i < NUMTHREADS ; ++i) {
+		struct init_colors_args icargs[num_threads];
+		for(int i = 0 ; i < num_threads ; ++i) {
 			icargs[i].start = i * p_block_size;
-			icargs[i].end = (i == NUMTHREADS - 1)? G->n_verts : (i + 1) * p_block_size;
+			icargs[i].end = (i == num_threads - 1)? G->n_verts : (i + 1) * p_block_size;
 			icargs[i].colors = colors;
 			pthread_create(&threads[i], NULL, p_init_colors, &icargs[i]);
 
-		} for(int i = 0 ; i < NUMTHREADS ; ++i) pthread_join(threads[i], NULL);
+		} for(int i = 0 ; i < num_threads ; ++i) pthread_join(threads[i], NULL);
 
 		// this loop will run as long as at least one vertex changed colors in
 		// the last iteration since a vertex changing color might end up changing
@@ -375,10 +370,10 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 		while(changed_color) {
 			changed_color = false;
 
-			struct coloring_args colargs[NUMTHREADS];
-			for(int i = 0 ; i < NUMTHREADS ; ++i) {
+			struct coloring_args colargs[num_threads];
+			for(int i = 0 ; i < num_threads ; ++i) {
 				colargs[i].start = i * p_block_size;
-				colargs[i].end = (i == NUMTHREADS - 1)? G->n_verts : (i + 1) * p_block_size;
+				colargs[i].end = (i == num_threads - 1)? G->n_verts : (i + 1) * p_block_size;
 
 				colargs[i].G = G;
 				colargs[i].is_vertex = is_vertex;
@@ -388,7 +383,7 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 				colargs[i].colors = colors;
 
 				pthread_create(&threads[i], NULL, p_coloring, &colargs[i]);
-			} for(int i = 0 ; i < NUMTHREADS ; ++i) pthread_join(threads[i], NULL);
+			} for(int i = 0 ; i < num_threads ; ++i) pthread_join(threads[i], NULL);
 		}
 
 
@@ -407,10 +402,10 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 		pthread_mutex_t n_colors_lock = PTHREAD_MUTEX_INITIALIZER;
 
 		// initializing the unique colors array in parallel
-		struct init_unique_colors_args iucargs[NUMTHREADS];
-		for(int i = 0 ; i < NUMTHREADS ; ++i) {
+		struct init_unique_colors_args iucargs[num_threads];
+		for(int i = 0 ; i < num_threads ; ++i) {
 			iucargs[i].start = i * p_block_size;
-			iucargs[i].end = (i == NUMTHREADS - 1)? G->n_verts : (i + 1) * p_block_size;
+			iucargs[i].end = (i == num_threads - 1)? G->n_verts : (i + 1) * p_block_size;
 
 			iucargs[i].is_vertex = is_vertex;
 			iucargs[i].colors = colors;
@@ -421,18 +416,18 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 			iucargs[i].n_colors_lock = &n_colors_lock;
 
 			pthread_create(&threads[i], NULL, p_init_unique_colors, &iucargs[i]);
-		} for(int i = 0 ; i < NUMTHREADS ; ++i) pthread_join(threads[i], NULL);
+		} for(int i = 0 ; i < num_threads ; ++i) pthread_join(threads[i], NULL);
 		
 
 		// free the extra memory allocated to unique_colors
 		unique_colors = (vert_t *) realloc(unique_colors, n_colors * sizeof(vert_t));
 
 		// then get the SCCs for each unique color in parallel
-		size_t p_color_block_size = n_colors / NUMTHREADS;
-		struct get_sccs_args sccargs[NUMTHREADS];
-		for(int i = 0 ; i < NUMTHREADS ; ++i) {
+		size_t p_color_block_size = n_colors / num_threads;
+		struct get_sccs_args sccargs[num_threads];
+		for(int i = 0 ; i < num_threads ; ++i) {
 			sccargs[i].start = i * p_color_block_size;
-			sccargs[i].end = (i == NUMTHREADS - 1)? n_colors : (i + 1) * p_color_block_size;
+			sccargs[i].end = (i == num_threads - 1)? n_colors : (i + 1) * p_color_block_size;
 
 			sccargs[i].G = G;
 			sccargs[i].is_vertex = is_vertex;
@@ -442,7 +437,7 @@ ssize_t p_scc_coloring(const graph *G, vert_t **scc_id) {
 
 			sccargs[i].scc_id = scc_id;
 			pthread_create(&threads[i], NULL, p_get_sccs, &sccargs[i]);
-		} for (int i = 0 ; i < NUMTHREADS ; ++i) {
+		} for (int i = 0 ; i < num_threads ; ++i) {
 			pthread_join(threads[i], NULL);
 			
 			n_scc += sccargs[i].n_scc_thd;

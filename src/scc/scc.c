@@ -33,8 +33,12 @@
 #include <scc_serial.h>
 #include <scc_pthreads.h>
 
+#ifndef NUM_THREADS
+#define NUM_THREADS 4
+#endif
+
 const char help_string[] = "scc - find number of sccs in a graph\n\
-Usage:\tscc [-sp] [--] mtx_file.mtx\n\
+Usage:\tscc [OPTIONS] [--] mtx_file.mtx\n\
 \n\
 Description:\n\
   scc will find the number of SCCs in a given graph.\n\
@@ -53,6 +57,7 @@ Options:\n\
   -h:\tprint this help text and exit.\n\
   -s:\trun the serial implementation of scc.\n\
   -p:\trun the parallel implementation of scc.\n\
+  -n:\tspecify the number of threads. must be a number greater than 0\n\
   --:\tend of options. the argument following must be a filename\n\
 \n";
 
@@ -60,9 +65,10 @@ int main(int argc, char **argv) {
 
 	bool run_serial = false;
 	bool run_parallel = false;
+	int num_threads = NUM_THREADS;
 
 	int opt;
-	while((opt = getopt(argc, argv, "hsp")) != -1) {
+	while((opt = getopt(argc, argv, ":hspn:")) != -1) {
 		switch(opt) {
 		case 'h':
 			printf(help_string);
@@ -73,6 +79,24 @@ int main(int argc, char **argv) {
 		case 'p':
 			run_parallel = true;
 			break;
+		case 'n':
+			num_threads = atoi(optarg);
+			if(!num_threads) {
+				if(!strcmp(optarg, "0"))
+					fprintf(stderr, "Error: option '-n' -- number of threads must be more than 0\n");
+				else
+					fprintf(stderr, "Error: option '-n' must be followed by a numeral\n");
+
+				exit(EINVAL);
+			}
+			break;
+		case ':':
+			switch(optopt) {
+			case 'n':
+				fprintf(stderr, "Error: option '-n' must be followed by a numeral\n");
+				break;
+			}
+			exit(EINVAL);
 		case '?':
 			if(isprint(optopt))
 				fprintf(stderr, "Error: unknown command-line option '-%c'\n", optopt);
@@ -92,7 +116,7 @@ int main(int argc, char **argv) {
 
 	char* mtx_fname = NULL;
 	if(optind >= argc) {
-		fprintf(stderr, "Error reading input arguments: %s\nUsage:\tscc [-sp] [--] mtx_file.mtx\n", 
+		fprintf(stderr, "Error reading input arguments: %s\nUsage:\tscc [OPTIONS] [--] mtx_file.mtx\n", 
 				strerror(EINVAL));
 		exit(EINVAL);
 	}
@@ -138,7 +162,7 @@ int main(int argc, char **argv) {
 	if(run_parallel) {
 		printf("=== parallel SCC algorithm ===\n");
 		clock_gettime(CLOCK_MONOTONIC, &t1);
-		p_n_scc = p_scc_coloring(G, &p_scc_id);
+		p_n_scc = p_scc_coloring(G, &p_scc_id, num_threads);
 		clock_gettime(CLOCK_MONOTONIC, &t2);
 
 		if(p_n_scc == -1) {

@@ -46,7 +46,9 @@ void or_reducer(void *left, void *right) { *(bool *)left = *(bool *)left || *(bo
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
-ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id) {
+ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id, int num_threads) {
+
+	setenv("CILK_NWORKERS", sprintf("%d", num_threads), 1);
 	
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {

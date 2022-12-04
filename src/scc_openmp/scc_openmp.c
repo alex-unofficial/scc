@@ -28,11 +28,6 @@
 #include <string.h>
 
 
-#ifndef NUMTHREADS
-#define NUMTHREADS 8
-#endif
-
-
 /* Implements the graph coloring algorithm to find the SCCs of G
  *
  * takes as input the graph G and a double pointer where the result will 
@@ -41,7 +36,7 @@
  * scc_id is of size n_verts
  * if v belongs to the scc with id c then: scc_id[v] = c
  */
-ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
+ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id, int num_threads) {
 	
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
@@ -50,7 +45,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 	}
 	
 	// initializing is_vertex array in parallel
-	#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
+	#pragma omp parallel for default (shared) num_threads (num_threads)
 	for(vert_t v = 0 ; v < G->n_verts ; ++v) is_vertex[v] = true;
 	size_t n_active_verts = G->n_verts;
 
@@ -75,7 +70,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		// loop over all vertices in parallel
 		// verts removed is private to each thread and when all threads return
 		// the value will be set as the sum of the values of all the threads.
-		#pragma omp parallel for default (shared) num_threads (NUMTHREADS) \
+		#pragma omp parallel for default (shared) num_threads (num_threads) \
 			reduction (+:verts_removed) 
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 			if(is_vertex[v]) {
@@ -114,7 +109,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		}
 
 		// initialize colors in parallel
-		#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
+		#pragma omp parallel for default (shared) num_threads (num_threads)
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) colors[v] = v;
 
 		// this loop will run as long as at least one vertex changed colors in
@@ -125,7 +120,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 			changed_color = false;
 
 			// we loop over all the vertives v in the graph in parallel
-			#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
+			#pragma omp parallel for default (shared) num_threads (num_threads)
 			for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 				if(is_vertex[v]) {
 					// we get the predecessors of the vertex v (vertices u such that [u, v] in G)
@@ -171,7 +166,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		// from the way colors was initialized, the unique colors are 
 		// those of the vertices v such that colors[v] = v, then c := v.
 		// we append c to the unique_colors array. we can do this in parallel
-		#pragma omp parallel for default (shared) num_threads (NUMTHREADS)
+		#pragma omp parallel for default (shared) num_threads (num_threads)
 		for(vert_t v = 0 ; v < G->n_verts ; ++v) {
 			if(is_vertex[v] && colors[v] == v) {
 				// but we must consider the operation below critical (mutex),
@@ -190,7 +185,7 @@ ssize_t omp_scc_coloring(const graph *G, vert_t **scc_id) {
 		// then loop over all the unique colors c in parallel
 		// performing once again a sum reduction on sccs_found
 		// and verts_removed on each thread.
-		#pragma omp parallel for default (shared) num_threads(NUMTHREADS) \
+		#pragma omp parallel for default (shared) num_threads(num_threads) \
 			reduction (+:sccs_found, verts_removed)
 		for(size_t i = 0 ; i < n_colors ; ++i) {
 			vert_t c = unique_colors[i];
