@@ -48,10 +48,6 @@ void or_reducer(void *left, void *right) { *(bool *)left = *(bool *)left || *(bo
  */
 ssize_t cilk_scc_coloring(const graph *G, vert_t **scc_id, int num_threads) {
 
-	char thread_str[4];
-	sprintf(thread_str, "%d", num_threads);
-	setenv("CILK_NWORKERS", thread_str, 1);
-	
 	bool *is_vertex = (bool *) malloc(G->n_verts * sizeof(bool));
 	if(is_vertex == NULL) {
 		fprintf(stderr, "Error allocating memory:\n%s\n", strerror(ENOMEM));
