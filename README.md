@@ -68,7 +68,7 @@ implementation with `-s` and `-p` respectively.
 
 additionally with the `-n` option you can specify the number of threads to use
 ```bash
-./bin/scc [-n <u>nthreads</u>] mtx_file.mtx
+./bin/scc [-n nthreads] mtx_file.mtx
 ```
 
 the program by default will run both the serial and parallel implementations, measure the
