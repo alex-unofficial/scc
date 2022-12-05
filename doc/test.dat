@@ -1,0 +1,9 @@
+     1	celegansneural      4    PTHREAD   57        0.000167
+     2	foldoc              4    PTHREAD   71        0.001034
+     3	language            4    PTHREAD   2456      0.948870
+     4	eu-2005             4    PTHREAD   90768     1.964474
+     5	wiki-topcats        4    PTHREAD   1         13.973182
+     6	sx-stackoverflow    4    PTHREAD   953658    12.001151
+     7	wikipedia-20060925  4    PTHREAD   975731    25.977567
+     8	wikipedia-20061104  4    PTHREAD   1040035   22.997777
+     9	wikipedia-20070206  4    PTHREAD   1203340   25.985485
