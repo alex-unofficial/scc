@@ -1,5 +1,5 @@
-#scc
-##find number of sccs in a graph
+# scc
+## find number of sccs in a graph
 
 This program was built as an assignment for my Parallel & Distributed Comp. Systems
 class in University.
